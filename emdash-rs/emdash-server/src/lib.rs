@@ -1,14 +1,29 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use axum::{routing::get, Router};
+use std::sync::Arc;
+
+use emdash_core::{DatabaseProvider, LlmProvider, StorageProvider};
+use emdash_sandbox::PluginRunner;
+
+/// A universal context that can be injected into any request,
+/// abstracting away the underlying implementations (e.g., SQLite vs Postgres).
+#[derive(Clone)]
+pub struct ServerContext {
+    pub db: Arc<dyn DatabaseProvider + Send + Sync>,
+    pub storage: Arc<dyn StorageProvider + Send + Sync>,
+    pub llm: Arc<dyn LlmProvider + Send + Sync>,
+    pub plugin_runner: Arc<dyn PluginRunner + Send + Sync>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// A basic health check handler
+async fn health_check() -> &'static str {
+    "OK"
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+/// Create the universal API router
+pub fn create_router(context: ServerContext) -> Router {
+    // Basic setup showing state injection.
+    // In the future we will bind concrete paths to the providers.
+    Router::new()
+        .route("/_emdash/health", get(health_check))
+        .with_state(context)
 }
