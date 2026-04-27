@@ -1,75 +1,17 @@
 # EmDash
 
-A full-stack TypeScript CMS built on [Astro](https://astro.build/) and [Cloudflare](https://www.cloudflare.com/). EmDash takes the ideas that made WordPress dominant -- extensibility, admin UX, a plugin ecosystem -- and rebuilds them on serverless, type-safe foundations. Plugins run in sandboxed Worker isolates, solving the fundamental security problem with WordPress's plugin architecture.
+A pure Rust serverless CMS. EmDash takes the ideas that made WordPress dominant -- extensibility, admin UX, a plugin ecosystem -- and rebuilds them using first-principles Rust for performance, safety, and universal portability. Plugins run in sandboxed WebAssembly execution environments.
 
 ## Get Started
 
-> [!IMPORTANT]
-> EmDash depends on Dynamic Workers to run secure sandboxed plugins. Dynamic Workers are currently only available on paid accounts. [Upgrade your account](https://www.cloudflare.com/plans/developer-platform/) (starting at $5/mo) or comment out the `worker_loaders` block of your `wrangler.jsonc` configuration file to disable plugins.
+EmDash is distributed as a Rust crate and Cargo workspace.
 
 ```bash
-npm create emdash@latest
+git clone https://github.com/emdash-cms/emdash.git && cd emdash/emdash-rs
+cargo build
 ```
 
-Or deploy directly to your Cloudflare account:
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/emdash-cms/templates/tree/main/blog-cloudflare)
-
-EmDash runs on Cloudflare (D1 + R2 + Workers) or any Node.js server with SQLite. No PHP, no separate hosting tier -- just deploy your Astro site.
-
-## Templates
-
-EmDash ships with three starter templates:
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-### Blog
-
-<a href="assets/templates/blog/latest/"><img src="assets/templates/blog/latest/homepage-light-desktop.jpg" alt="Blog template" width="100%"></a>
-
-A classic blog with sidebar widgets, search, and RSS.
-
-- Categories & tags
-- Full-text search
-- Comment-ready
-- RSS feed
-- Dark / light mode
-
-</td>
-<td width="33%" valign="top">
-
-### Marketing
-
-<a href="assets/templates/marketing/latest/"><img src="assets/templates/marketing/latest/homepage-light-desktop.jpg" alt="Marketing template" width="100%"></a>
-
-A conversion-focused landing page with pricing and contact form.
-
-- Hero with CTAs
-- Feature grid
-- Pricing cards
-- FAQ and contact form
-- Dark / light mode
-
-</td>
-<td width="33%" valign="top">
-
-### Portfolio
-
-<a href="assets/templates/portfolio/latest/"><img src="assets/templates/portfolio/latest/work-light-desktop.jpg" alt="Portfolio template" width="100%"></a>
-
-A visual portfolio for showcasing creative work.
-
-- Project grid
-- Tag filtering
-- Case study pages
-- RSS feed
-- Dark / light mode
-<br /><br />
-</td>
-</tr>
-</table>
+EmDash runs natively anywhere Rust runs. Because it depends entirely on async traits (`DatabaseProvider`, `StorageProvider`, `LlmProvider`, `PluginRunner`), you can supply bespoke implementations to map it to any database or deployment platform.
 
 ## Why EmDash?
 
@@ -100,38 +42,18 @@ export default () =>
 
 **Built for agents.** EmDash ships with agent skills for building plugins and themes, a CLI that lets agents manage content and schema programmatically, and a built-in [MCP server](https://modelcontextprotocol.io/) so AI tools like Claude and ChatGPT can interact with your site directly.
 
-**Runs anywhere.** EmDash uses portable abstractions at every layer -- Kysely for SQL, S3 API for storage -- that work with SQLite, D1, Turso, PostgreSQL, R2, AWS S3, or local files. It runs on Cloudflare, Node.js, and soon, natively in Rust.
+**Runs anywhere.** EmDash uses portable abstractions at every layer that work with SQLite, D1, Turso, PostgreSQL, R2, AWS S3, or local files. It is designed to run natively in Rust on any server or serverless environment.
 
-## How It Works
+## Architecture
 
-EmDash is an Astro integration. Add it to your config and you get a complete CMS: admin panel, REST API, authentication, media library, and plugin system.
+EmDash is built on a highly modular Rust `cargo` workspace:
 
-```typescript
-// astro.config.mjs
-import emdash from "emdash/astro";
-import { d1 } from "emdash/db";
+- **Core Abstractions:** Business logic depends purely on async traits in `emdash-core` (`DatabaseProvider`, `LlmProvider`, `StorageProvider`, `PluginRunner`).
+- **Web Framework:** Uses `axum` and `tokio` for ergonomic and highly performant HTTP routing.
+- **Wasm Plugins:** Uses WebAssembly to provide secure sandboxing and lifecycle hook executions for untrusted plugins.
+- **Universal LLM integration:** Abstracting AI generation behind an `OpenAICompatProvider` prevents vendor lock-in.
 
-export default defineConfig({
-	integrations: [emdash({ database: d1() })],
-});
-```
-
-Content types are defined in the database, not in code. Non-developers create and modify collections through the admin UI. Each collection gets a real SQL table with typed columns. Developers generate TypeScript types from the live schema:
-
-```bash
-npx emdash types
-```
-
-Query content using Astro's Live Collections -- no rebuilds, no separate API:
-
-```astro
----
-import { getEmDashCollection } from "emdash";
-const { entries: posts } = await getEmDashCollection("posts");
----
-
-{posts.map((post) => <article>{post.data.title}</article>)}
-```
+Content types are defined natively in the database via bespoke SQL generation based on dynamic `ColumnDef` parsing. Non-developers will be able to create and modify collections dynamically, and the `emdash-db` crate will securely generate matching SQL definitions.
 
 ## Features
 
@@ -149,73 +71,46 @@ const { entries: posts } = await getEmDashCollection("posts");
 
 ## Portable Platforms
 
-| Layer    | Cloudflare                  | Also works with                                     |
-| -------- | --------------------------- | --------------------------------------------------- |
-| Database | D1                          | SQLite, Turso/libSQL, PostgreSQL                    |
-| Storage  | R2                          | AWS S3, any S3-compatible service, local filesystem |
-| Sessions | KV                          | Redis, file-based                                   |
-| Plugins  | Worker isolates (sandboxed) | In-process (safe mode)                              |
-| AI       | Workers AI                  | Any OpenAI-Compatible endpoint                      |
+| Layer    | Provided Trait Implementations              | Also works with                                     |
+| -------- | ------------------------------------------- | --------------------------------------------------- |
+| Database | `BespokeDb` (`emdash-db`)                   | SQLite, Turso/libSQL, PostgreSQL                    |
+| Storage  | `LocalStorage` (`emdash-storage`)           | AWS S3, any S3-compatible service, local filesystem |
+| Sessions | In-memory                                   | Redis, file-based                                   |
+| Plugins  | `PluginRunner` via WebAssembly              | In-process (safe mode)                              |
+| AI       | `OpenAiCompatProvider` (`emdash-llm`)       | Any OpenAI-Compatible endpoint                      |
 
 ## Status
 
-EmDash is in **beta preview**. We welcome contributions, feedback, plugins, themes, and ideas.
+EmDash is currently being actively ported into a pure Rust ecosystem. We welcome contributions, feedback, plugins, themes, and ideas.
 
-```bash
-npm create emdash@latest
-```
-
-See the [documentation](https://github.com/emdash-cms/emdash/tree/main/docs) for guides, API reference, and plugin development.
+See the [documentation](https://github.com/emdash-cms/emdash/tree/main/docs) for legacy TS guides.
 
 ## Development
 
-This is a pnpm monorepo. To contribute:
+The project is structured as a standard Rust `cargo` workspace.
 
 ```bash
-git clone https://github.com/emdash-cms/emdash.git && cd emdash
-pnpm install
-pnpm build
+git clone https://github.com/emdash-cms/emdash.git && cd emdash/emdash-rs
+cargo build
 ```
 
-Run the demo (Node.js + SQLite, no Cloudflare account needed):
+To run tests across the workspace:
 
 ```bash
-pnpm --filter emdash-demo seed
-pnpm --filter emdash-demo dev
+cargo test
 ```
-
-Open the admin at [http://localhost:4321/\_emdash/admin](http://localhost:4321/_emdash/admin).
-
-```bash
-pnpm test          # run all tests
-pnpm typecheck     # type check
-pnpm lint:quick    # fast lint (< 1s)
-pnpm format        # format with oxfmt
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor guide.
 
 ## Repository Structure
 
 ```
-packages/
-  core/           Astro integration, APIs, admin UI, CLI
-  auth/           Authentication library
-  blocks/         Portable Text block definitions
-  cloudflare/     Cloudflare adapter (D1, R2, Worker Loader)
-  plugins/        First-party plugins (forms, embeds, SEO, audit-log, etc.)
-  create-emdash/  npm create emdash scaffolding
-  gutenberg-to-portable-text/  WordPress block converter
-
-templates/        Starter templates (blog, marketing, portfolio, starter, blank)
-demos/            Development and example sites
-docs/             Documentation site (Starlight)
+emdash-rs/
+  emdash-core/     Async traits (DatabaseProvider, StorageProvider, LlmProvider), PortableText AST
+  emdash-db/       First-principles dynamic schema database abstractions
+  emdash-schema/   Validation and schema definitions
+  emdash-sandbox/  Wasm plugin execution sandbox
+  emdash-server/   Axum HTTP routing and server context wiring
+  emdash-storage/  Local and in-memory storage implementations
+  emdash-llm/      Universal OpenAI-compatible clients
 ```
 
-## Rust Port (emdash-rs)
-
-We are currently working on an end-to-end port of EmDash into a pure Rust ecosystem!
-
-The goal is to build a high-performance, safe, and portable serverless-friendly framework using first-principles Rust, maintaining full feature parity with the TypeScript version but significantly lowering memory overhead and improving startup times.
-
-You can find the design document and architecture overview at [RUST_DESIGN.md](RUST_DESIGN.md). The scaffolding for the new crates is located in the [`emdash-rs/`](emdash-rs/) directory.
+For a detailed breakdown of the architecture, see [RUST_DESIGN.md](RUST_DESIGN.md).
