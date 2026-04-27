@@ -1,14 +1,33 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Collection {
+    pub name: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub fields: Vec<Field>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Field {
+    pub name: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub field_type: FieldType,
+    pub required: bool,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum FieldType {
+    String,
+    Text,
+    Number,
+    Boolean,
+    Date,
+    Datetime,
+    Object { fields: Vec<Field> },
+    Array { of: Box<FieldType> },
+    Reference { to: String },
+    PortableText,
 }
