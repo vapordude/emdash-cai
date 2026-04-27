@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "emdash-core",
+    "emdash-db",
+    "emdash-schema",
+    "emdash-sandbox",
+    "emdash-server"
+]
+resolver = "2"
