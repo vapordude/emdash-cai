@@ -75,7 +75,9 @@ A visual portfolio for showcasing creative work.
 
 **WordPress was built for a different era.** Running WordPress today means managing PHP alongside JavaScript, layering caches to get acceptable performance, and knowing that [96% of WordPress security vulnerabilities come from plugins](https://patchstack.com/whitepaper/state-of-wordpress-security-in-2024/). EmDash is what WordPress would look like if you started from scratch with today's tools.
 
-**Sandboxed plugins.** WordPress plugins have full access to the database, filesystem, and user data. A single vulnerable plugin can compromise the entire site. EmDash plugins run in isolated [Worker sandboxes](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/) via Dynamic Worker Loaders, each with a declared capability manifest. A plugin that requests `read:content` and `email:send` can do exactly that and nothing else.
+**Universal OpenAI-Compatible AI Endpoints.** Moving beyond vendor lock-in, EmDash plugins now leverage universal, open OpenAI-compatible models for auditing, moderation, and embeddings. You are no longer tied specifically to Cloudflare Workers AI — just configure your API key and base URL, and run inference everywhere.
+
+**Sandboxed plugins.** WordPress plugins have full access to the database, filesystem, and user data. A single vulnerable plugin can compromise the entire site. EmDash plugins run in isolated Worker sandboxes, each with a declared capability manifest. A plugin that requests `read:content` and `email:send` can do exactly that and nothing else.
 
 ```typescript
 export default () =>
@@ -98,7 +100,7 @@ export default () =>
 
 **Built for agents.** EmDash ships with agent skills for building plugins and themes, a CLI that lets agents manage content and schema programmatically, and a built-in [MCP server](https://modelcontextprotocol.io/) so AI tools like Claude and ChatGPT can interact with your site directly.
 
-**Runs anywhere.** EmDash uses portable abstractions at every layer -- Kysely for SQL, S3 API for storage -- that work with SQLite, D1, Turso, PostgreSQL, R2, AWS S3, or local files. It runs best on Cloudflare, but it's not locked to it.
+**Runs anywhere.** EmDash uses portable abstractions at every layer -- Kysely for SQL, S3 API for storage -- that work with SQLite, D1, Turso, PostgreSQL, R2, AWS S3, or local files. It runs on Cloudflare, Node.js, and soon, natively in Rust.
 
 ## How It Works
 
@@ -153,6 +155,7 @@ const { entries: posts } = await getEmDashCollection("posts");
 | Storage  | R2                          | AWS S3, any S3-compatible service, local filesystem |
 | Sessions | KV                          | Redis, file-based                                   |
 | Plugins  | Worker isolates (sandboxed) | In-process (safe mode)                              |
+| AI       | Workers AI                  | Any OpenAI-Compatible endpoint                      |
 
 ## Status
 

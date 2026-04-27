@@ -44,6 +44,7 @@
 
 import type { PluginDefinition, PluginContext, RouteContext, ContentHookEvent } from "emdash";
 import { extractPlainText } from "emdash";
+import { generateUniversalEmbedding } from "./openaicompat.js";
 
 /** Safely extract a string from an unknown value */
 function toString(value: unknown): string {
@@ -184,13 +185,28 @@ export function vectorizeSearch(config: VectorizeSearchConfig = {}): PluginDefin
 						}
 
 						// Generate embedding
-						const embedResult = await env.AI.run(model, {
-							text: [text],
-						});
+						let embedding: number[];
+						try {
+							// Try to use OpenAI compatible endpoint first
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const globalEnv = (globalThis as any).process?.env || {};
+							const config = {
+								baseURL: globalEnv.UNIVERSAL_AI_BASE_URL ?? "https://api.openai.com/v1",
+								apiKey: globalEnv.UNIVERSAL_AI_API_KEY ?? "",
+								model: globalEnv.UNIVERSAL_AI_EMBEDDING_MODEL ?? "text-embedding-3-small",
+							};
+							embedding = await generateUniversalEmbedding(text, config);
+						} catch (error) {
+							// Fallback to Workers AI
+							const embedResult = await env.AI.run(model, {
+								text: [text],
+							});
 
-						if (!embedResult?.data?.[0]) {
-							console.error("[vectorize-search] Failed to generate embedding");
-							return;
+							if (!embedResult?.data?.[0]) {
+								console.error("[vectorize-search] Failed to generate embedding");
+								return;
+							}
+							embedding = embedResult.data[0];
 						}
 
 						// Upsert to Vectorize
@@ -201,7 +217,7 @@ export function vectorizeSearch(config: VectorizeSearchConfig = {}): PluginDefin
 						await env.VECTORIZE.upsert([
 							{
 								id: contentId,
-								values: embedResult.data[0],
+								values: embedding,
 								metadata: {
 									collection,
 									slug: contentSlug ?? "",
@@ -280,15 +296,29 @@ export function vectorizeSearch(config: VectorizeSearchConfig = {}): PluginDefin
 
 					try {
 						// Generate embedding for query
-						const embedResult = await env.AI.run(model, {
-							text: [query],
-						});
-
-						if (!embedResult?.data?.[0]) {
-							return {
-								error: "Failed to generate query embedding",
-								results: [],
+						let embedding: number[];
+						try {
+							// Try to use OpenAI compatible endpoint first
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const globalEnv = (globalThis as any).process?.env || {};
+							const config = {
+								baseURL: globalEnv.UNIVERSAL_AI_BASE_URL ?? "https://api.openai.com/v1",
+								apiKey: globalEnv.UNIVERSAL_AI_API_KEY ?? "",
+								model: globalEnv.UNIVERSAL_AI_EMBEDDING_MODEL ?? "text-embedding-3-small",
 							};
+							embedding = await generateUniversalEmbedding(query, config);
+						} catch (error) {
+							const embedResult = await env.AI.run(model, {
+								text: [query],
+							});
+
+							if (!embedResult?.data?.[0]) {
+								return {
+									error: "Failed to generate query embedding",
+									results: [],
+								};
+							}
+							embedding = embedResult.data[0];
 						}
 
 						// Query Vectorize
@@ -306,7 +336,7 @@ export function vectorizeSearch(config: VectorizeSearchConfig = {}): PluginDefin
 							};
 						}
 
-						const results = await env.VECTORIZE.query(embedResult.data[0], queryOptions);
+						const results = await env.VECTORIZE.query(embedding, queryOptions);
 
 						return {
 							results: results.matches.map((match) => ({
