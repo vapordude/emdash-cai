@@ -208,3 +208,11 @@ templates/        Starter templates (blog, marketing, portfolio, starter, blank)
 demos/            Development and example sites
 docs/             Documentation site (Starlight)
 ```
+
+## Rust Port (emdash-rs)
+
+We are currently working on an end-to-end port of EmDash into a pure Rust ecosystem!
+
+The goal is to build a high-performance, safe, and portable serverless-friendly framework using first-principles Rust, maintaining full feature parity with the TypeScript version but significantly lowering memory overhead and improving startup times.
+
+You can find the design document and architecture overview at [RUST_DESIGN.md](RUST_DESIGN.md). The scaffolding for the new crates is located in the [`emdash-rs/`](emdash-rs/) directory.
