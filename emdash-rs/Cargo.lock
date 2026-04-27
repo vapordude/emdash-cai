@@ -108,6 +108,7 @@ name = "emdash-sandbox"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "emdash-core",
  "serde_json",
 ]
 

@@ -17,18 +17,29 @@ impl BespokeDb {
     }
 
     /// Gets a single record by ID from a dynamic table
-    pub async fn get_by_id(&self, table: &str, id: &str) -> Result<Option<Value>, String> {
-        // Implementation stub
-        Ok(None)
+    pub async fn get_by_id(&self, _table: &str, _id: &str) -> Result<Option<Value>, String> {
+        unimplemented!()
+    }
+
+    /// Validates identifiers to prevent SQL injection
+    fn validate_identifier(ident: &str) -> Result<(), String> {
+        if ident.is_empty() || !ident.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err(format!("Invalid SQL identifier: '{}'", ident));
+        }
+        Ok(())
     }
 
     /// Creates a new table for a given collection schema
     /// This should map standard types (String, Date, PortableText) to DB-specific columns
     pub async fn create_table(&self, table: &str, columns: &[ColumnDef]) -> Result<(), String> {
-        let mut sql = format!("CREATE TABLE {} (\n", table);
+        Self::validate_identifier(table)?;
+
+        let mut sql = format!("CREATE TABLE \"{}\" (\n", table);
         let mut column_defs = Vec::new();
         for col in columns {
-            let mut def = format!("  {} {}", col.name, col.col_type.to_sql());
+            Self::validate_identifier(&col.name)?;
+
+            let mut def = format!("  \"{}\" {}", col.name, col.col_type.to_sql());
             if col.required {
                 def.push_str(" NOT NULL");
             }
@@ -49,14 +60,12 @@ impl BespokeDb {
 
 #[async_trait]
 impl DatabaseProvider for BespokeDb {
-    async fn query(&self, sql: &str) -> Result<Vec<Value>, String> {
-        // Implementation stub
-        Ok(vec![])
+    async fn query(&self, _sql: &str) -> Result<Vec<Value>, String> {
+        unimplemented!()
     }
 
-    async fn execute(&self, sql: &str) -> Result<u64, String> {
-        // Implementation stub
-        Ok(0)
+    async fn execute(&self, _sql: &str) -> Result<u64, String> {
+        unimplemented!()
     }
 }
 

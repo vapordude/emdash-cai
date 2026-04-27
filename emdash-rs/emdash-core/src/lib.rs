@@ -19,3 +19,20 @@ pub trait DatabaseProvider {
 pub trait LlmProvider {
     async fn generate_text(&self, prompt: &str) -> Result<String, String>;
 }
+
+#[async_trait]
+pub trait PluginRunner {
+    /// Loads a plugin (e.g. Wasm module) into the sandbox
+    async fn load_plugin(&self, plugin_id: &str, wasm_bytes: &[u8]) -> Result<(), String>;
+
+    /// Executes a hook/function within the plugin sandbox securely
+    async fn execute_hook(
+        &self,
+        plugin_id: &str,
+        hook_name: &str,
+        payload: serde_json::Value,
+    ) -> Result<serde_json::Value, String>;
+
+    /// Removes a plugin from the sandbox
+    async fn unload_plugin(&self, plugin_id: &str) -> Result<(), String>;
+}
