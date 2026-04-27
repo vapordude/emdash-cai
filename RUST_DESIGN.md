@@ -22,15 +22,15 @@ This document outlines the architectural design for porting the EmDash CMS (a Ty
 
 ## 2. Database and Schema Layer
 **Current Stack:** SQLite (D1, libSQL) via `kysely` (TypeScript SQL query builder).
-**Rust Stack:** `sqlx` (for static/typed query execution) + `sea-query` (for dynamic query building).
+**Rust Stack:** Abstract `DatabaseProvider` trait and first principles custom implementations.
 
-- **Dynamic Schema (`ec_*` tables):** EmDash generates database tables dynamically based on user-defined collections. `sea-query` provides an AST to dynamically construct `CREATE TABLE`, `ALTER TABLE`, `SELECT`, and `INSERT` statements.
-- **Migrations:** EmDash has an embedded migration runner. We will write a custom migration runner using `sqlx` to apply pure SQL strings for system tables (`_emdash_*`).
-- **Connection Pooling:** Abstracting the database connection pool so the system can run on SQLite locally, or Postgres in production via `sqlx`.
+- **Dynamic Schema (`ec_*` tables):** EmDash generates database tables dynamically based on user-defined collections. Instead of relying on heavy crates like `sea-query`, we will generate bespoke pure SQL from a dynamic schema parser.
+- **Migrations:** We will use a bespoke lightweight migration runner applying pure SQL strings for system tables (`_emdash_*`).
+- **Connection Pooling:** The system abstracts the database behind an async trait (`DatabaseProvider`), allowing us to provide our own bespoke local or cloud connections without heavy lock-in to external crates.
 
 ## 3. Plugin System and Sandbox
 **Current Stack:** Cloudflare Dynamic Worker Loaders.
-**Rust Stack:** `wasmtime` or `wasmer` + WebAssembly System Interface (WASI).
+**Rust Stack:** Custom `PluginRunner` trait and bespoke WebAssembly runners.
 
 - **Why Wasm?** WebAssembly is the industry standard for executing untrusted code securely. Plugins will be compiled to `.wasm` modules.
 - **Capabilities Manifest:** Just like the TypeScript version (`capabilities: ["read:content"]`), the Rust runtime will inspect a plugin manifest. Wasmtime allows configuring host functions. We will only expose host functions (e.g., `db_query`, `send_email`) to the plugin if the sandbox's config permits it.
@@ -59,14 +59,21 @@ This document outlines the architectural design for porting the EmDash CMS (a Ty
 1. **Hybrid:** Compile the existing Vite/React app and embed it into the Rust binary using `rust-embed`. The Axum server just serves the static assets.
 2. **Pure Rust:** Rewrite the admin dashboard using `Leptos` or `Dioxus`. These frameworks compile to WebAssembly for the browser and offer React-like reactivity. Given the complexity of TipTap (which relies heavily on Prosemirror DOM manipulation), a hybrid approach using embedded HTML/JS for the Rich Text Editor but Rust for the layout is advisable for the first iteration.
 
-## 6. Architecture & Workspace Layout
-The repository will be structured as a Cargo workspace to modularize concerns, similar to the `packages/` structure in the TypeScript monorepo.
+## 6. Universal AI and Storage
+To remain true to a universal, vendor-agnostic architecture:
+- **AI Endpoints:** EmDash uses a universal `OpenAICompatible` architecture. The framework relies on an abstract `LlmProvider` trait, and provides a bespoke implementation that avoids cloud-specific SDKs.
+- **Storage:** EmDash abstracts all file operations through a `StorageProvider` trait.
 
-- `emdash-core/`: Traits, PortableText AST, request context, and core business logic.
-- `emdash-db/`: Database abstractions (`sqlx` + `sea-query`), dynamic schema registry.
-- `emdash-schema/`: Validation, generation, Zod-equivalents via `validator` crate.
-- `emdash-sandbox/`: The `wasmtime` runner for executing plugins safely.
-- `emdash-server/`: The `axum` HTTP server wiring it all together.
+## 7. Architecture & Workspace Layout
+The repository is structured as a Cargo workspace to modularize concerns, similar to the `packages/` structure in the TypeScript monorepo.
+
+- `emdash-core/`: Abstract async traits (`DatabaseProvider`, `StorageProvider`, `LlmProvider`, `PluginRunner`), PortableText AST, request context, and core business logic.
+- `emdash-db/`: First-principles database abstractions and bespoke dynamic schema SQL generation.
+- `emdash-schema/`: Validation and schema types mapping to database tables.
+- `emdash-sandbox/`: Bespoke Wasm plugin runner ensuring secure hook execution.
+- `emdash-storage/`: Local and in-memory storage implementations implementing `StorageProvider`.
+- `emdash-llm/`: Universal OpenAI-compatible client implementing `LlmProvider`.
+- `emdash-server/`: The `axum` HTTP server wiring the traits and endpoints together.
 
 ## Conclusion
 This architecture achieves full parity with EmDash while significantly lowering memory overhead and improving startup times by leveraging Rust's zero-cost abstractions and robust multithreading.
