@@ -13,7 +13,7 @@ import { DEFAULT_CATEGORIES, buildTaxonomy } from "./categories.js";
 import type { Category } from "./categories.js";
 import { computeDecision } from "./decision.js";
 import type { AIModerationOptions } from "./descriptor.js";
-import { runGuard } from "./guard.js";
+import { runUniversalGuard } from "./openaicompat.js";
 import type { GuardResult } from "./guard.js";
 
 /** KV key for stored categories */
@@ -31,7 +31,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 export function createPlugin(options: AIModerationOptions = {}): ResolvedPlugin {
 	const defaultAutoApprove = options.autoApproveClean ?? true;
-	const aiBinding = options.aiBinding ?? "AI";
 
 	/** Load categories from KV or fall back to options/defaults */
 	async function loadCategories(kv: {
@@ -76,7 +75,13 @@ export function createPlugin(options: AIModerationOptions = {}): ResolvedPlugin 
 					const taxonomy = buildTaxonomy(categories);
 					if (taxonomy) {
 						try {
-							guard = await runGuard(event.comment.body, taxonomy, aiBinding);
+							const env = (await import("cloudflare:workers")).env as any;
+							const config = {
+								baseURL: env.UNIVERSAL_AI_BASE_URL ?? "https://api.openai.com/v1",
+								apiKey: env.UNIVERSAL_AI_API_KEY ?? "",
+								model: env.UNIVERSAL_AI_CODE_MODEL ?? "gpt-4o",
+							};
+							guard = await runUniversalGuard(event.comment.body, taxonomy, config);
 						} catch (error) {
 							guardError = "AI classification failed";
 							ctx.log.error("AI guard failed", {
@@ -200,7 +205,13 @@ export function createPlugin(options: AIModerationOptions = {}): ResolvedPlugin 
 
 					if (taxonomy) {
 						try {
-							guard = await runGuard(text, taxonomy, aiBinding);
+							const env = (await import("cloudflare:workers")).env as any;
+							const config = {
+								baseURL: env.UNIVERSAL_AI_BASE_URL ?? "https://api.openai.com/v1",
+								apiKey: env.UNIVERSAL_AI_API_KEY ?? "",
+								model: env.UNIVERSAL_AI_CODE_MODEL ?? "gpt-4o",
+							};
+							guard = await runUniversalGuard(text, taxonomy, config);
 						} catch (error) {
 							guardError = error instanceof Error ? error.message : String(error);
 						}

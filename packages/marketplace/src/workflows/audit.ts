@@ -3,9 +3,8 @@ import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import { createGzipDecoder, unpackTar } from "modern-tar";
 
 import type { ImageInput } from "../audit/image-types.js";
-import { createWorkersAIImageAuditor } from "../audit/image-workers-ai.js";
+import { createUniversalAIImageAuditor, createUniversalAIAuditor, type UniversalAIConfig } from "../audit/openaicompat.js";
 import type { AuditInput } from "../audit/types.js";
-import { createWorkersAIAuditor } from "../audit/workers-ai.js";
 import {
 	createAudit,
 	createImageAudit,
@@ -72,10 +71,17 @@ export class AuditWorkflow extends WorkflowEntrypoint<Env, AuditParams> {
 	override async run(event: Readonly<WorkflowEvent<AuditParams>>, step: WorkflowStep) {
 		const { pluginId, version, bundleKey, versionId, manifest, hasImages } = event.payload;
 
+		const aiConfig: UniversalAIConfig = {
+			baseURL: this.env.UNIVERSAL_AI_BASE_URL ?? "https://api.openai.com/v1",
+			apiKey: this.env.UNIVERSAL_AI_API_KEY ?? "",
+			codeModel: this.env.UNIVERSAL_AI_CODE_MODEL ?? "gpt-4o",
+			imageModel: this.env.UNIVERSAL_AI_IMAGE_MODEL ?? "gpt-4o",
+		};
+
 		// Step 1: Run code audit
 		const auditResult = await step.do("code-audit", RETRY_CONFIG, async () => {
 			const { backendCode, adminCode } = await this.extractCodeFromR2(bundleKey);
-			const auditor = createWorkersAIAuditor(this.env.AI);
+			const auditor = createUniversalAIAuditor(aiConfig);
 			const input: AuditInput = {
 				manifest,
 				backendCode,
@@ -98,7 +104,7 @@ export class AuditWorkflow extends WorkflowEntrypoint<Env, AuditParams> {
 			? await step.do("image-audit", RETRY_CONFIG, async () => {
 					const imageFiles = await this.extractImagesFromR2(bundleKey);
 					if (imageFiles.length === 0) return null;
-					const imageAuditor = createWorkersAIImageAuditor(this.env.AI);
+					const imageAuditor = createUniversalAIImageAuditor(aiConfig);
 					const result = await imageAuditor.auditImages(imageFiles);
 					return {
 						verdict: result.verdict,

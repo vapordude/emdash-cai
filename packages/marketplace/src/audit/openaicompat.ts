@@ -1,6 +1,8 @@
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { generateObject } from "ai";
 import { z } from "zod";
-
 import type { AuditInput, AuditResult, Auditor } from "./types.js";
+import type { ImageAuditFinding, ImageAuditResult, ImageAuditor, ImageInput } from "./image-types.js";
 
 const SYSTEM_PROMPT = `You are a security auditor for EmDash CMS plugins. EmDash plugins run in a sandboxed environment on Cloudflare Workers. Your job is to analyze plugin source code and manifest for security risks.
 
@@ -42,33 +44,6 @@ Analyze for these categories:
 
 Be thorough but calibrated. A plugin that fetches data from its declared allowedHosts is normal. A plugin that encodes user content and sends it to an undeclared IP address is not.`;
 
-const AUDIT_SCHEMA = {
-	type: "object",
-	properties: {
-		verdict: { type: "string", enum: ["pass", "warn", "fail"] },
-		riskScore: { type: "number" },
-		findings: {
-			type: "array",
-			items: {
-				type: "object",
-				properties: {
-					severity: {
-						type: "string",
-						enum: ["critical", "high", "medium"],
-					},
-					title: { type: "string" },
-					description: { type: "string" },
-					category: { type: "string" },
-					location: { type: "string" },
-				},
-				required: ["severity", "title", "description", "category"],
-			},
-		},
-		summary: { type: "string" },
-	},
-	required: ["verdict", "riskScore", "findings", "summary"],
-} as const;
-
 const findingSchema = z.object({
 	severity: z.enum(["critical", "high", "medium"]),
 	title: z.string(),
@@ -99,41 +74,45 @@ function buildUserPrompt(input: AuditInput): string {
 	return parts.join("\n");
 }
 
-export function createWorkersAIAuditor(ai: Ai): Auditor {
+export interface UniversalAIConfig {
+	baseURL: string;
+	apiKey: string;
+	codeModel: string;
+	imageModel: string;
+}
+
+export function createUniversalAIAuditor(config: UniversalAIConfig): Auditor {
+	const openai = createOpenAICompatible({
+		name: 'universal-ai',
+		baseURL: config.baseURL,
+		apiKey: config.apiKey,
+	});
+
+	const model = openai(config.codeModel);
+
 	return {
 		async audit(input: AuditInput): Promise<AuditResult> {
 			console.log(`Running audit with model...`);
 			const start = Date.now();
-			const modelId = "@cf/qwen/qwq-32b" as const;
 			try {
 				const prompt = buildUserPrompt(input);
-				const result = await ai.run(modelId, {
+				const { object } = await generateObject({
+					model,
+					schema: resultSchema,
 					messages: [
 						{ role: "system", content: SYSTEM_PROMPT },
 						{ role: "user", content: prompt },
 					],
-					max_tokens: 10000,
-					guided_json: AUDIT_SCHEMA,
 					temperature: 0.1,
 				});
 
-				console.log(result.usage);
-
-				let response: z.infer<typeof resultSchema> | string = result.response;
-
-				if (typeof response === "string") {
-					response = resultSchema.parse(JSON.parse(response));
-				}
 				return {
-					...response,
-					model: modelId,
+					...object,
+					model: config.codeModel,
 					durationMs: Date.now() - start,
 				};
 			} catch (err) {
 				console.error("Error during AI audit:", String(err));
-				// Fail-closed: an audit that couldn't complete must not produce a
-				// passing result.  Returning "fail" ensures block-mode enforcement
-				// rejects the version rather than silently publishing it.
 				return {
 					verdict: "fail",
 					riskScore: 100,
@@ -151,9 +130,125 @@ export function createWorkersAIAuditor(ai: Ai): Auditor {
 					summary:
 						"AI audit failed to complete — version cannot be published without successful audit",
 					durationMs: Date.now() - start,
-					model: modelId,
+					model: config.codeModel,
 				};
 			}
+		},
+	};
+}
+
+const VISION_PROMPT = `You are a content moderator for a plugin marketplace. Analyze this image that was submitted as part of a plugin listing (icon, screenshot, or banner).
+
+Evaluate the image for:
+- **nsfw**: Sexually explicit or graphic violent content
+- **offensive**: Hate symbols, slurs, discriminatory content
+- **misleading**: Fake UI elements, impersonation of system dialogs, deceptive screenshots
+- **brand-impersonation**: Unauthorized use of well-known brand logos or trademarks
+- **appropriate**: Image is acceptable for a plugin marketplace
+
+Calibration:
+- **pass**: Normal plugin imagery — icons, screenshots, diagrams, illustrations
+- **warn**: Borderline content that merits human review — suggestive imagery, lookalike branding, potentially misleading UI
+- **fail**: Clearly violates policy — explicit content, hate symbols, obvious brand theft`;
+
+const imageResponseSchema = z.object({
+	verdict: z.enum(["pass", "warn", "fail"]),
+	category: z.string(),
+	description: z.string(),
+});
+
+const VERDICT_RANK: Record<ImageAuditResult["verdict"], number> = {
+	pass: 0,
+	warn: 1,
+	fail: 2,
+};
+
+function worstVerdict(findings: ImageAuditFinding[]): ImageAuditResult["verdict"] {
+	let worst: ImageAuditResult["verdict"] = "pass";
+	for (const f of findings) {
+		if (VERDICT_RANK[f.verdict] > VERDICT_RANK[worst]) {
+			worst = f.verdict;
+		}
+	}
+	return worst;
+}
+
+function toDataUri(data: ArrayBuffer): string {
+	const bytes = new Uint8Array(data);
+	let binary = "";
+	for (let i = 0; i < bytes.length; i++) {
+		binary += String.fromCharCode(bytes[i]!);
+	}
+	return `data:image/png;base64,${btoa(binary)}`;
+}
+
+export function createUniversalAIImageAuditor(config: UniversalAIConfig): ImageAuditor {
+	const openai = createOpenAICompatible({
+		name: 'universal-ai',
+		baseURL: config.baseURL,
+		apiKey: config.apiKey,
+	});
+
+	const model = openai(config.imageModel);
+
+	async function auditSingleImage(image: ImageInput): Promise<ImageAuditFinding> {
+		try {
+			const { object } = await generateObject({
+				model,
+				schema: imageResponseSchema,
+				messages: [
+					{
+						role: "user",
+						content: [
+							{ type: "text", text: VISION_PROMPT },
+							{
+								type: "image",
+								image: new URL(toDataUri(image.data)),
+							},
+						],
+					},
+				],
+				temperature: 0.1,
+			});
+
+			return {
+				filename: image.filename,
+				verdict: object.verdict,
+				category: object.category,
+				description: object.description,
+			};
+		} catch (err) {
+			console.error(`Error auditing image ${image.filename}:`, String(err));
+			return {
+				filename: image.filename,
+				verdict: "fail",
+				category: "audit-error",
+				description: "Image audit failed to complete — manual review required",
+			};
+		}
+	}
+
+	return {
+		async auditImages(images: ImageInput[]): Promise<ImageAuditResult> {
+			const start = Date.now();
+
+			if (images.length === 0) {
+				return {
+					verdict: "pass",
+					images: [],
+					model: config.imageModel,
+					durationMs: Date.now() - start,
+				};
+			}
+
+			const findings = await Promise.all(images.map((img) => auditSingleImage(img)));
+
+			return {
+				verdict: worstVerdict(findings),
+				images: findings,
+				model: config.imageModel,
+				durationMs: Date.now() - start,
+			};
 		},
 	};
 }

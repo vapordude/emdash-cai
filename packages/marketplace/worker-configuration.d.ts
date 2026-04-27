@@ -15,6 +15,10 @@ declare namespace Cloudflare {
 		AUDIT_ENFORCEMENT: string;
 		SEED_TOKEN?: string;
 		AUDIT_WORKFLOW: Workflow /* AuditWorkflow */;
+		UNIVERSAL_AI_BASE_URL?: string;
+		UNIVERSAL_AI_API_KEY?: string;
+		UNIVERSAL_AI_CODE_MODEL?: string;
+		UNIVERSAL_AI_IMAGE_MODEL?: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

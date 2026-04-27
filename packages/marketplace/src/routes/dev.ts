@@ -8,9 +8,8 @@ import { Hono } from "hono";
 import { createGzipDecoder, unpackTar } from "modern-tar";
 
 import type { ImageInput } from "../audit/image-types.js";
-import { createWorkersAIImageAuditor } from "../audit/image-workers-ai.js";
+import { createUniversalAIImageAuditor, createUniversalAIAuditor, type UniversalAIConfig } from "../audit/openaicompat.js";
 import type { AuditInput } from "../audit/types.js";
-import { createWorkersAIAuditor } from "../audit/workers-ai.js";
 import { getAuditEnforcement } from "../env.js";
 import { manifestSchema } from "./author.js";
 
@@ -188,11 +187,15 @@ devRoutes.post("/dev/audit", async (c) => {
 	}
 
 	// Run audits
-	if (!c.env.AI) {
-		return c.json({ error: "AI binding not configured �� auditing is unavailable" }, 503);
-	}
-	const auditor = createWorkersAIAuditor(c.env.AI);
-	const imageAuditor = imageFiles.length > 0 ? createWorkersAIImageAuditor(c.env.AI) : null;
+	const aiConfig: UniversalAIConfig = {
+		baseURL: c.env.UNIVERSAL_AI_BASE_URL ?? "https://api.openai.com/v1",
+		apiKey: c.env.UNIVERSAL_AI_API_KEY ?? "",
+		codeModel: c.env.UNIVERSAL_AI_CODE_MODEL ?? "gpt-4o",
+		imageModel: c.env.UNIVERSAL_AI_IMAGE_MODEL ?? "gpt-4o",
+	};
+
+	const auditor = createUniversalAIAuditor(aiConfig);
+	const imageAuditor = imageFiles.length > 0 ? createUniversalAIImageAuditor(aiConfig) : null;
 
 	const [codeResult, imageResult] = await Promise.all([
 		auditor.audit(auditInput),
