@@ -91,7 +91,16 @@ name = "emdash-db"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "emdash-core",
  "serde_json",
+]
+
+[[package]]
+name = "emdash-llm"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "emdash-core",
 ]
 
 [[package]]
@@ -122,6 +131,14 @@ dependencies = [
  "emdash-schema",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "emdash-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "emdash-core",
 ]
 
 [[package]]

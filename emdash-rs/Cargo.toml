@@ -4,6 +4,8 @@ members = [
     "emdash-db",
     "emdash-schema",
     "emdash-sandbox",
-    "emdash-server"
+    "emdash-server",
+    "emdash-storage",
+    "emdash-llm"
 ]
 resolver = "2"
