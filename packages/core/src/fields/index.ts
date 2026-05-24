@@ -21,7 +21,6 @@ export type {
 	FieldUIHints,
 	ColumnType,
 	PortableTextBlock,
-	ImageValue,
 	FileValue,
 } from "./types.js";
 

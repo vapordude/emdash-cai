@@ -36,7 +36,6 @@ export type {
 	FieldUIHints,
 	PortableTextBlock,
 	MediaValue,
-	ImageValue,
 	FileValue,
 } from "./fields/index.js";
 
@@ -149,11 +148,7 @@ export {
 } from "./visual-editing/editable.js";
 
 // Re-export loader types (but not the loader itself - use emdash/runtime)
-export type {
-	EntryData,
-	EntryFilter,
-	CollectionFilter as LoaderCollectionFilter,
-} from "./loader.js";
+export type { EntryData, EntryFilter } from "./loader.js";
 
 // WordPress import
 export { parseWxr, parseWxrString } from "./cli/wxr/parser.js";
