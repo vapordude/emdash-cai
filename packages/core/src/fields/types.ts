@@ -1,9 +1,7 @@
 import type { z } from "astro/zod";
+import type { ColumnType } from "../schema/types.js";
 
-/**
- * SQLite column types that map from field types
- */
-export type ColumnType = "TEXT" | "REAL" | "INTEGER" | "JSON";
+export type { ColumnType } from "../schema/types.js";
 
 /**
  * Base field definition
@@ -45,12 +43,6 @@ export interface PortableTextBlock {
 
 // Re-export MediaValue from media/types.ts (canonical location)
 export type { MediaValue } from "../media/types.js";
-import type { MediaValue } from "../media/types.js";
-
-/**
- * @deprecated Use MediaValue instead. ImageValue is an alias for backwards compatibility.
- */
-export type ImageValue = MediaValue;
 
 /**
  * File field value

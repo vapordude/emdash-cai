@@ -1,6 +1,7 @@
 import { z } from "astro/zod";
 
-import type { FieldDefinition, ImageValue } from "./types.js";
+import type { FieldDefinition } from "./types.js";
+import type { MediaValue } from "../media/types.js";
 
 /**
  * Image field schema
@@ -21,7 +22,7 @@ export function image(options?: {
 	required?: boolean;
 	maxSize?: number; // in bytes
 	allowedTypes?: string[]; // MIME types
-}): FieldDefinition<ImageValue | undefined> {
+}): FieldDefinition<MediaValue | undefined> {
 	return {
 		type: "image",
 		columnType: "TEXT",
