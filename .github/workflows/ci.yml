@@ -238,3 +238,29 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: emdash-rs
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            emdash-rs/target
+          key: rust-${{ hashFiles('emdash-rs/Cargo.lock') }}
+          restore-keys: rust-
+      - name: fmt
+        run: cargo fmt --check
+      - name: clippy
+        run: cargo clippy --deny warnings
+      - name: test
+        run: cargo test

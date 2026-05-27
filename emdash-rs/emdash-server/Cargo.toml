@@ -1,14 +1,24 @@
 [package]
-name = "emdash-server"
+name    = "emdash-server"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-async-trait = "0.1.89"
-axum = "0.8.9"
-emdash-core = { version = "0.1.0", path = "../emdash-core" }
-emdash-db = { version = "0.1.0", path = "../emdash-db" }
-emdash-sandbox = { version = "0.1.0", path = "../emdash-sandbox" }
-emdash-schema = { version = "0.1.0", path = "../emdash-schema" }
-serde_json = "1.0.149"
-tokio = { version = "1.52.1", features = ["macros", "rt-multi-thread"] }
+async-trait       = { workspace = true }
+serde             = { workspace = true }
+serde_json        = { workspace = true }
+tokio             = { workspace = true }
+axum              = { workspace = true }
+tower-http        = { workspace = true }
+tracing           = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid              = { workspace = true }
+chrono            = { workspace = true }
+utoipa            = { workspace = true }
+minijinja         = { workspace = true }
+emdash-core       = { workspace = true }
+emdash-db         = { workspace = true }
+emdash-schema     = { workspace = true }
+emdash-sandbox    = { workspace = true }
+emdash-storage    = { workspace = true }
+emdash-llm        = { workspace = true }
