@@ -11,7 +11,9 @@ pub struct LocalStorage {
 
 impl LocalStorage {
     pub fn new(base_path: impl AsRef<Path>) -> Self {
-        Self { base: base_path.as_ref().to_path_buf() }
+        Self {
+            base: base_path.as_ref().to_path_buf(),
+        }
     }
 
     /// Resolve and sanitise a logical path against the base directory.
@@ -19,7 +21,11 @@ impl LocalStorage {
     fn resolve(&self, path: &str) -> Result<PathBuf, ApiError> {
         let rel = Path::new(path);
         // Reject absolute paths or path traversal attempts.
-        if rel.is_absolute() || rel.components().any(|c| c == std::path::Component::ParentDir) {
+        if rel.is_absolute()
+            || rel
+                .components()
+                .any(|c| c == std::path::Component::ParentDir)
+        {
             return Err(ApiError::BadRequest(format!(
                 "invalid storage path: '{path}'"
             )));
@@ -56,11 +62,9 @@ impl StorageProvider for LocalStorage {
     async fn delete_file(&self, path: &str) -> Result<(), ApiError> {
         let full = self.resolve(path)?;
         match fs::remove_file(&full).await {
-            Ok(())                                                 => Ok(()),
+            Ok(()) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e)                                                 => {
-                Err(ApiError::Internal(e.to_string()))
-            }
+            Err(e) => Err(ApiError::Internal(e.to_string())),
         }
     }
 

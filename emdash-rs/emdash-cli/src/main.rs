@@ -52,10 +52,10 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     // ── Shared infrastructure (all sub-commands need DB + storage) ─────────────
-    let db_url     = std::env::var("DATABASE_URL").unwrap_or_else(|_| "emdash.db".to_string());
+    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "emdash.db".to_string());
     let store_path = std::env::var("STORAGE_PATH").unwrap_or_else(|_| "storage".to_string());
 
-    let db  = Arc::new(emdash_db::BespokeDb::connect(&db_url).await?);
+    let db = Arc::new(emdash_db::BespokeDb::connect(&db_url).await?);
     let sto = Arc::new(emdash_storage::LocalStorage::new(&store_path));
     let llm = Arc::new(emdash_llm::OpenAiCompatProvider::from_env());
     let plg = Arc::new(emdash_sandbox::NoopPluginRunner);
@@ -101,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
             for col in &collections {
                 let name = match col["name"].as_str() {
                     Some(n) => n,
-                    None    => continue,
+                    None => continue,
                 };
                 let table = format!("ec_{name}");
                 let items = ctx.db

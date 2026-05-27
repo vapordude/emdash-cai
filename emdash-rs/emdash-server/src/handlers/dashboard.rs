@@ -1,24 +1,23 @@
 use axum::extract::State;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::sync::Arc;
 
-use emdash_core::ApiError;
 use axum::{Router, routing::get};
+use emdash_core::ApiError;
 
 use super::common::ApiEnvelope;
 use crate::ServerContext;
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct DashboardStats {
-    pub total_content:    i64,
+    pub total_content: i64,
     pub published_content: i64,
-    pub draft_content:    i64,
-    pub total_media:      i64,
-    pub total_comments:   i64,
+    pub draft_content: i64,
+    pub total_media: i64,
+    pub total_comments: i64,
     pub pending_comments: i64,
     pub total_collections: i64,
-    pub loaded_plugins:   usize,
+    pub loaded_plugins: usize,
 }
 
 /// Aggregate site statistics for the admin dashboard.
@@ -48,25 +47,28 @@ pub async fn get_dashboard(
     let collections = ctx.db.list("_emdash_collections").await?;
     let collection_count = collections.len() as i64;
 
-    let mut total_content     = 0i64;
+    let mut total_content = 0i64;
     let mut published_content = 0i64;
-    let mut draft_content     = 0i64;
+    let mut draft_content = 0i64;
 
     for col in &collections {
         if let Some(name) = col["name"].as_str() {
             let all_sql = format!("SELECT COUNT(*) as count FROM ec_{name}");
-            let pub_sql = format!("SELECT COUNT(*) as count FROM ec_{name} WHERE status = 'published'");
-            let drft_sql = format!("SELECT COUNT(*) as count FROM ec_{name} WHERE status = 'draft'");
+            let pub_sql =
+                format!("SELECT COUNT(*) as count FROM ec_{name} WHERE status = 'published'");
+            let drft_sql =
+                format!("SELECT COUNT(*) as count FROM ec_{name} WHERE status = 'draft'");
 
-            total_content     += count(&all_sql).await;
+            total_content += count(&all_sql).await;
             published_content += count(&pub_sql).await;
-            draft_content     += count(&drft_sql).await;
+            draft_content += count(&drft_sql).await;
         }
     }
 
     let total_media = count("SELECT COUNT(*) as count FROM _emdash_media").await;
     let total_comments = count("SELECT COUNT(*) as count FROM _emdash_comments").await;
-    let pending_comments = count("SELECT COUNT(*) as count FROM _emdash_comments WHERE status = 'pending'").await;
+    let pending_comments =
+        count("SELECT COUNT(*) as count FROM _emdash_comments WHERE status = 'pending'").await;
     let loaded_plugins = ctx.plugin_runner.loaded_plugins().await.len();
 
     Ok(ApiEnvelope::new(DashboardStats {
@@ -82,6 +84,5 @@ pub async fn get_dashboard(
 }
 
 pub fn router() -> Router<Arc<ServerContext>> {
-    Router::new()
-        .route("/_emdash/api/dashboard", get(get_dashboard))
+    Router::new().route("/_emdash/api/dashboard", get(get_dashboard))
 }

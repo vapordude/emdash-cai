@@ -6,15 +6,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 struct ChatRequest<'a> {
-    model:       &'a str,
-    messages:    &'a [ChatMessage],
+    model: &'a str,
+    messages: &'a [ChatMessage],
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens:  Option<u32>,
+    max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    stop:        Option<&'a [String]>,
-    stream:      bool,
+    stop: Option<&'a [String]>,
+    stream: bool,
 }
 
 #[derive(Deserialize)]
@@ -61,13 +61,17 @@ struct EmbedData {
 /// - `LLM_MODEL`     (default: `gpt-4o-mini`)
 pub struct OpenAiCompatProvider {
     base_url: String,
-    api_key:  Option<String>,
-    model:    String,
-    client:   reqwest::Client,
+    api_key: Option<String>,
+    model: String,
+    client: reqwest::Client,
 }
 
 impl OpenAiCompatProvider {
-    pub fn new(base_url: impl Into<String>, api_key: Option<String>, model: impl Into<String>) -> Self {
+    pub fn new(
+        base_url: impl Into<String>,
+        api_key: Option<String>,
+        model: impl Into<String>,
+    ) -> Self {
         Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             api_key,
@@ -88,7 +92,7 @@ impl OpenAiCompatProvider {
     fn auth(&self, req: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         match &self.api_key {
             Some(key) => req.bearer_auth(key),
-            None      => req,
+            None => req,
         }
     }
 }
@@ -97,7 +101,10 @@ impl OpenAiCompatProvider {
 impl LlmProvider for OpenAiCompatProvider {
     async fn generate_text(&self, prompt: &str, opts: LlmOptions) -> Result<String, ApiError> {
         self.chat_completion(
-            vec![ChatMessage { role: "user".into(), content: prompt.into() }],
+            vec![ChatMessage {
+                role: "user".into(),
+                content: prompt.into(),
+            }],
             opts,
         )
         .await
@@ -109,16 +116,19 @@ impl LlmProvider for OpenAiCompatProvider {
         opts: LlmOptions,
     ) -> Result<String, ApiError> {
         let body = ChatRequest {
-            model:       &self.model,
-            messages:    &messages,
+            model: &self.model,
+            messages: &messages,
             temperature: opts.temperature,
-            max_tokens:  opts.max_tokens,
-            stop:        opts.stop.as_deref(),
-            stream:      false,
+            max_tokens: opts.max_tokens,
+            stop: opts.stop.as_deref(),
+            stream: false,
         };
 
         let resp = self
-            .auth(self.client.post(format!("{}/v1/chat/completions", self.base_url)))
+            .auth(
+                self.client
+                    .post(format!("{}/v1/chat/completions", self.base_url)),
+            )
             .json(&body)
             .send()
             .await
@@ -144,7 +154,10 @@ impl LlmProvider for OpenAiCompatProvider {
     }
 
     async fn embed(&self, input: &str) -> Result<Vec<f32>, ApiError> {
-        let body = EmbedRequest { model: &self.model, input };
+        let body = EmbedRequest {
+            model: &self.model,
+            input,
+        };
 
         let resp = self
             .auth(self.client.post(format!("{}/v1/embeddings", self.base_url)))

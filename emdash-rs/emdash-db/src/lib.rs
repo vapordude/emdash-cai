@@ -11,10 +11,7 @@ pub fn validate_identifier(name: &str) -> Result<(), ApiError> {
     if name.is_empty() {
         return Err(ApiError::BadRequest("identifier must not be empty".into()));
     }
-    if name
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_')
-    {
+    if name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         Ok(())
     } else {
         Err(ApiError::BadRequest(format!(
@@ -27,10 +24,10 @@ pub fn validate_identifier(name: &str) -> Result<(), ApiError> {
 
 #[derive(Debug, Clone)]
 pub struct ColumnDef {
-    pub name:     String,
+    pub name: String,
     pub col_type: ColumnType,
     pub required: bool,
-    pub unique:   bool,
+    pub unique: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -46,11 +43,11 @@ pub enum ColumnType {
 impl ColumnType {
     pub fn to_sql(&self) -> &'static str {
         match self {
-            ColumnType::Text      => "TEXT",
-            ColumnType::Integer   => "INTEGER",
-            ColumnType::Float     => "REAL",
-            ColumnType::Boolean   => "INTEGER",
-            ColumnType::Json      => "TEXT",
+            ColumnType::Text => "TEXT",
+            ColumnType::Integer => "INTEGER",
+            ColumnType::Float => "REAL",
+            ColumnType::Boolean => "INTEGER",
+            ColumnType::Json => "TEXT",
             ColumnType::Timestamp => "TEXT",
         }
     }
@@ -58,10 +55,7 @@ impl ColumnType {
 
 // ── Migration runner ──────────────────────────────────────────────────────────
 
-const MIGRATIONS: &[(&str, &str)] = &[(
-    "001_init",
-    include_str!("../migrations/001_init.sql"),
-)];
+const MIGRATIONS: &[(&str, &str)] = &[("001_init", include_str!("../migrations/001_init.sql"))];
 
 async fn run_migrations(pool: &Pool<Sqlite>) -> Result<(), ApiError> {
     // Ensure the migrations table exists first.
@@ -77,13 +71,12 @@ async fn run_migrations(pool: &Pool<Sqlite>) -> Result<(), ApiError> {
     .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     for (name, sql) in MIGRATIONS {
-        let already_applied: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM _emdash_migrations WHERE name = ?",
-        )
-        .bind(name)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| ApiError::Internal(e.to_string()))?;
+        let already_applied: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM _emdash_migrations WHERE name = ?")
+                .bind(name)
+                .fetch_one(pool)
+                .await
+                .map_err(|e| ApiError::Internal(e.to_string()))?;
 
         if already_applied == 0 {
             // Run each statement in the migration file individually.
@@ -177,11 +170,7 @@ impl BespokeDb {
     }
 
     /// Fetch a single row by id from any table, returned as a JSON object.
-    pub async fn get_by_id(
-        &self,
-        table: &str,
-        id: &str,
-    ) -> Result<Option<Value>, ApiError> {
+    pub async fn get_by_id(&self, table: &str, id: &str) -> Result<Option<Value>, ApiError> {
         validate_identifier(table)?;
         let sql = format!("SELECT * FROM {table} WHERE id = ?");
         let row_opt = sqlx::query(&sql)
@@ -237,11 +226,7 @@ fn row_to_json(row: &sqlx::sqlite::SqliteRow) -> Value {
 
 #[async_trait]
 impl DatabaseProvider for BespokeDb {
-    async fn query(
-        &self,
-        sql: &str,
-        params: Vec<Value>,
-    ) -> Result<Vec<Value>, ApiError> {
+    async fn query(&self, sql: &str, params: Vec<Value>) -> Result<Vec<Value>, ApiError> {
         let mut q = sqlx::query(sql);
         for p in &params {
             q = match p {
@@ -253,9 +238,9 @@ impl DatabaseProvider for BespokeDb {
                         q.bind(n.as_f64().unwrap_or(0.0))
                     }
                 }
-                Value::Bool(b)   => q.bind(*b),
-                Value::Null      => q.bind(Option::<String>::None),
-                other            => q.bind(other.to_string()),
+                Value::Bool(b) => q.bind(*b),
+                Value::Null => q.bind(Option::<String>::None),
+                other => q.bind(other.to_string()),
             };
         }
         let rows = q
@@ -266,11 +251,7 @@ impl DatabaseProvider for BespokeDb {
         Ok(rows.iter().map(row_to_json).collect())
     }
 
-    async fn execute(
-        &self,
-        sql: &str,
-        params: Vec<Value>,
-    ) -> Result<u64, ApiError> {
+    async fn execute(&self, sql: &str, params: Vec<Value>) -> Result<u64, ApiError> {
         let mut q = sqlx::query(sql);
         for p in &params {
             q = match p {
@@ -282,9 +263,9 @@ impl DatabaseProvider for BespokeDb {
                         q.bind(n.as_f64().unwrap_or(0.0))
                     }
                 }
-                Value::Bool(b)   => q.bind(*b),
-                Value::Null      => q.bind(Option::<String>::None),
-                other            => q.bind(other.to_string()),
+                Value::Bool(b) => q.bind(*b),
+                Value::Null => q.bind(Option::<String>::None),
+                other => q.bind(other.to_string()),
             };
         }
         let result = q
@@ -295,11 +276,7 @@ impl DatabaseProvider for BespokeDb {
         Ok(result.rows_affected())
     }
 
-    async fn get_by_id(
-        &self,
-        table: &str,
-        id: &str,
-    ) -> Result<Option<Value>, ApiError> {
+    async fn get_by_id(&self, table: &str, id: &str) -> Result<Option<Value>, ApiError> {
         self.get_by_id(table, id).await
     }
 

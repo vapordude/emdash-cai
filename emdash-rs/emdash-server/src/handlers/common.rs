@@ -17,24 +17,30 @@ pub struct ApiEnvelope<T: Serialize> {
 #[derive(Serialize, Default, utoipa::ToSchema)]
 pub struct PaginationMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total:   Option<u64>,
+    pub total: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub page:    Option<u32>,
+    pub page: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub per_page: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cursor:  Option<String>,
+    pub cursor: Option<String>,
 }
 
 impl<T: Serialize> ApiEnvelope<T> {
     pub fn new(data: T) -> Self {
-        Self { data, meta: PaginationMeta::default() }
+        Self {
+            data,
+            meta: PaginationMeta::default(),
+        }
     }
 
     pub fn with_total(data: T, total: u64) -> Self {
         Self {
             data,
-            meta: PaginationMeta { total: Some(total), ..Default::default() },
+            meta: PaginationMeta {
+                total: Some(total),
+                ..Default::default()
+            },
         }
     }
 }

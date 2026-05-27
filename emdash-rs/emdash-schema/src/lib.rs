@@ -4,24 +4,24 @@ use serde_json::Value;
 /// Machine-readable collection definition.  Posted to `/_emdash/api/schema/collections`.
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Collection {
-    pub id:          Option<String>,
-    pub name:        String,
-    pub title:       String,
+    pub id: Option<String>,
+    pub name: String,
+    pub title: String,
     pub description: Option<String>,
-    pub is_feed:     bool,
-    pub fields:      Vec<Field>,
+    pub is_feed: bool,
+    pub fields: Vec<Field>,
 }
 
 /// A single field inside a collection.
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Field {
-    pub id:          Option<String>,
-    pub name:        String,
-    pub title:       String,
+    pub id: Option<String>,
+    pub name: String,
+    pub title: String,
     pub description: Option<String>,
-    pub field_type:  FieldType,
-    pub required:    bool,
-    pub position:    Option<u32>,
+    pub field_type: FieldType,
+    pub required: bool,
+    pub position: Option<u32>,
 }
 
 /// Every supported field type.  Custom types carry arbitrary JSON config.
@@ -38,10 +38,10 @@ pub enum FieldType {
     Image,
     File,
     PortableText,
-    Object   { fields: Vec<Field> },
-    Array    { of: Box<FieldType> },
+    Object { fields: Vec<Field> },
+    Array { of: Box<FieldType> },
     Reference { to: String },
-    Custom   { config: Value },
+    Custom { config: Value },
 }
 
 impl FieldType {

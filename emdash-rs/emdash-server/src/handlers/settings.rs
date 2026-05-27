@@ -1,20 +1,22 @@
-use axum::{Json, extract::{Path, State}};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use uuid::Uuid;
-use chrono::Utc;
 
+use axum::{Router, routing::get};
 use emdash_core::ApiError;
-use axum::{Router, routing::{get, put}};
 
 use super::common::ApiEnvelope;
 use crate::ServerContext;
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct SettingItem {
-    pub key:        String,
-    pub value:      String,
+    pub key: String,
+    pub value: String,
     pub updated_at: String,
 }
 
@@ -50,10 +52,14 @@ pub async fn get_setting(
     State(ctx): State<Arc<ServerContext>>,
     Path(key): Path<String>,
 ) -> Result<ApiEnvelope<Value>, ApiError> {
-    let rows = ctx.db
-        .query("SELECT * FROM _emdash_settings WHERE key = ?", vec![Value::String(key.clone())])
+    let rows = ctx
+        .db
+        .query(
+            "SELECT * FROM _emdash_settings WHERE key = ?",
+            vec![Value::String(key.clone())],
+        )
         .await?;
-    let item = rows.into_iter().next().ok_or_else(|| ApiError::NotFound(key))?;
+    let item = rows.into_iter().next().ok_or(ApiError::NotFound(key))?;
     Ok(ApiEnvelope::new(item))
 }
 
@@ -82,14 +88,23 @@ pub async fn upsert_setting(
             ],
         )
         .await?;
-    let rows = ctx.db
-        .query("SELECT * FROM _emdash_settings WHERE key = ?", vec![Value::String(key)])
+    let rows = ctx
+        .db
+        .query(
+            "SELECT * FROM _emdash_settings WHERE key = ?",
+            vec![Value::String(key)],
+        )
         .await?;
-    Ok(ApiEnvelope::new(rows.into_iter().next().unwrap_or(Value::Null)))
+    Ok(ApiEnvelope::new(
+        rows.into_iter().next().unwrap_or(Value::Null),
+    ))
 }
 
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
         .route("/_emdash/api/settings", get(list_settings))
-        .route("/_emdash/api/settings/{key}", get(get_setting).put(upsert_setting))
+        .route(
+            "/_emdash/api/settings/{key}",
+            get(get_setting).put(upsert_setting),
+        )
 }

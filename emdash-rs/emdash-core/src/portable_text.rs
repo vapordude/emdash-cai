@@ -10,12 +10,12 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct MarkDef {
     #[serde(rename = "_key")]
-    pub key:      String,
+    pub key: String,
     #[serde(rename = "_type")]
     pub def_type: String,
     /// Arbitrary extra fields (e.g. `href`, `rel`).
     #[serde(flatten)]
-    pub extra:    Value,
+    pub extra: Value,
 }
 
 // ── Inline span ───────────────────────────────────────────────────────────────
@@ -25,10 +25,10 @@ pub struct Span {
     #[serde(rename = "_type")]
     pub span_type: String, // always "span"
     #[serde(rename = "_key")]
-    pub key:       String,
-    pub text:      String,
+    pub key: String,
+    pub text: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub marks:     Vec<String>,
+    pub marks: Vec<String>,
 }
 
 // ── Text block ────────────────────────────────────────────────────────────────
@@ -38,21 +38,21 @@ pub struct Block {
     #[serde(rename = "_type")]
     pub block_type: String, // usually "block"
     #[serde(rename = "_key")]
-    pub key:        String,
-    pub style:      Option<String>, // "normal" | "h1" … "h6" | "blockquote"
-    pub children:   Vec<Span>,
+    pub key: String,
+    pub style: Option<String>, // "normal" | "h1" … "h6" | "blockquote"
+    pub children: Vec<Span>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub mark_defs:  Vec<MarkDef>,
-    pub level:      Option<u8>,
-    pub list_item:  Option<String>, // "bullet" | "number"
+    pub mark_defs: Vec<MarkDef>,
+    pub level: Option<u8>,
+    pub list_item: Option<String>, // "bullet" | "number"
 }
 
 // ── Image block ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ImageAsset {
-    pub id:    String,
-    pub url:   Option<String>,
+    pub id: String,
+    pub url: Option<String>,
     pub width: Option<u32>,
     pub height: Option<u32>,
     pub mime_type: Option<String>,
@@ -63,19 +63,29 @@ pub struct ImageBlock {
     #[serde(rename = "_type")]
     pub block_type: String, // "image"
     #[serde(rename = "_key")]
-    pub key:        String,
-    pub asset:      ImageAsset,
-    pub alt:        Option<String>,
-    pub caption:    Option<String>,
-    pub hotspot:    Option<Hotspot>,
-    pub crop:       Option<Crop>,
+    pub key: String,
+    pub asset: ImageAsset,
+    pub alt: Option<String>,
+    pub caption: Option<String>,
+    pub hotspot: Option<Hotspot>,
+    pub crop: Option<Crop>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct Hotspot { pub x: f32, pub y: f32, pub width: f32, pub height: f32 }
+pub struct Hotspot {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct Crop    { pub top: f32, pub bottom: f32, pub left: f32, pub right: f32 }
+pub struct Crop {
+    pub top: f32,
+    pub bottom: f32,
+    pub left: f32,
+    pub right: f32,
+}
 
 // ── Generic custom object block ───────────────────────────────────────────────
 
@@ -85,9 +95,9 @@ pub struct ObjectBlock {
     #[serde(rename = "_type")]
     pub block_type: String,
     #[serde(rename = "_key")]
-    pub key:        String,
+    pub key: String,
     #[serde(flatten)]
-    pub fields:     Value,
+    pub fields: Value,
 }
 
 // ── Top-level union ───────────────────────────────────────────────────────────

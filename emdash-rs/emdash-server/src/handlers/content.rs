@@ -1,5 +1,5 @@
 use axum::{
-    Extension, Json,
+    Json,
     extract::{Path, Query, State},
 };
 use chrono::{DateTime, Utc};
@@ -7,46 +7,49 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use emdash_core::ApiError;
-use axum::{Router, routing::{delete, get, patch, post}};
 
-use super::common::{ApiEnvelope, PaginationMeta};
+use super::common::ApiEnvelope;
 use crate::ServerContext;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ContentItem {
-    pub id:           String,
-    pub collection:   String,
-    pub status:       String,
-    pub slug:         Option<String>,
-    pub data:         serde_json::Value,
+    pub id: String,
+    pub collection: String,
+    pub status: String,
+    pub slug: Option<String>,
+    pub data: serde_json::Value,
     pub published_at: Option<DateTime<Utc>>,
-    pub created_at:   DateTime<Utc>,
-    pub updated_at:   DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateContentBody {
     pub collection: String,
-    pub slug:       Option<String>,
-    pub data:       serde_json::Value,
+    pub slug: Option<String>,
+    pub data: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct UpdateContentBody {
-    pub slug:   Option<String>,
-    pub data:   Option<serde_json::Value>,
+    pub slug: Option<String>,
+    pub data: Option<serde_json::Value>,
     pub status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {
     pub collection: String,
-    pub status:     Option<String>,
-    pub page:       Option<u32>,
-    pub per_page:   Option<u32>,
+    pub status: Option<String>,
+    pub page: Option<u32>,
+    pub per_page: Option<u32>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -93,7 +96,10 @@ pub async fn get_content(
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
     let collection = q.get("collection").cloned().unwrap_or_default();
     let table = format!("ec_{collection}");
-    let item = ctx.db.get_by_id(&table, &id).await?
+    let item = ctx
+        .db
+        .get_by_id(&table, &id)
+        .await?
         .ok_or_else(|| ApiError::NotFound(id.clone()))?;
     Ok(ApiEnvelope::new(item))
 }
@@ -125,7 +131,9 @@ pub async fn create_content(
             ),
             vec![
                 serde_json::Value::String(id.clone()),
-                body.slug.map(serde_json::Value::String).unwrap_or(serde_json::Value::Null),
+                body.slug
+                    .map(serde_json::Value::String)
+                    .unwrap_or(serde_json::Value::Null),
                 serde_json::Value::String(data_str),
                 serde_json::Value::String(now.clone()),
                 serde_json::Value::String(now),
@@ -133,7 +141,10 @@ pub async fn create_content(
         )
         .await?;
 
-    let item = ctx.db.get_by_id(&table, &id).await?
+    let item = ctx
+        .db
+        .get_by_id(&table, &id)
+        .await?
         .ok_or_else(|| ApiError::Internal("insert failed".into()))?;
 
     Ok((axum::http::StatusCode::CREATED, ApiEnvelope::new(item)))
@@ -180,7 +191,10 @@ pub async fn update_content(
     let sql = format!("UPDATE {table} SET {} WHERE id = ?", sets.join(", "));
     ctx.db.execute(&sql, params).await?;
 
-    let item = ctx.db.get_by_id(&table, &id).await?
+    let item = ctx
+        .db
+        .get_by_id(&table, &id)
+        .await?
         .ok_or_else(|| ApiError::NotFound(id.clone()))?;
     Ok(ApiEnvelope::new(item))
 }
@@ -212,7 +226,9 @@ pub async fn delete_content(
             ],
         )
         .await?;
-    Ok(ApiEnvelope::new(serde_json::json!({ "id": id, "status": "trashed" })))
+    Ok(ApiEnvelope::new(
+        serde_json::json!({ "id": id, "status": "trashed" }),
+    ))
 }
 
 /// Publish a content item.
@@ -242,7 +258,10 @@ pub async fn publish_content(
             ],
         )
         .await?;
-    let item = ctx.db.get_by_id(&table, &id).await?
+    let item = ctx
+        .db
+        .get_by_id(&table, &id)
+        .await?
         .ok_or_else(|| ApiError::NotFound(id.clone()))?;
     Ok(ApiEnvelope::new(item))
 }
@@ -271,7 +290,10 @@ pub async fn unpublish_content(
             ],
         )
         .await?;
-    let item = ctx.db.get_by_id(&table, &id).await?
+    let item = ctx
+        .db
+        .get_by_id(&table, &id)
+        .await?
         .ok_or_else(|| ApiError::NotFound(id.clone()))?;
     Ok(ApiEnvelope::new(item))
 }
@@ -280,8 +302,19 @@ pub async fn unpublish_content(
 
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
-        .route("/_emdash/api/content", get(list_content).post(create_content))
-        .route("/_emdash/api/content/{id}", get(get_content).patch(update_content).delete(delete_content))
+        .route(
+            "/_emdash/api/content",
+            get(list_content).post(create_content),
+        )
+        .route(
+            "/_emdash/api/content/{id}",
+            get(get_content)
+                .patch(update_content)
+                .delete(delete_content),
+        )
         .route("/_emdash/api/content/{id}/publish", post(publish_content))
-        .route("/_emdash/api/content/{id}/unpublish", post(unpublish_content))
+        .route(
+            "/_emdash/api/content/{id}/unpublish",
+            post(unpublish_content),
+        )
 }

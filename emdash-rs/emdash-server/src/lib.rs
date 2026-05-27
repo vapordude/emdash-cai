@@ -1,7 +1,7 @@
 pub mod handlers;
 pub mod site;
 
-use axum::{Router, routing::get, response::Html};
+use axum::{Router, response::Html, routing::get};
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
@@ -15,9 +15,9 @@ use emdash_sandbox::PluginRunner;
 /// Shared state injected into every request handler.
 #[derive(Clone)]
 pub struct ServerContext {
-    pub db:            Arc<dyn DatabaseProvider>,
-    pub storage:       Arc<dyn StorageProvider>,
-    pub llm:           Arc<dyn LlmProvider>,
+    pub db: Arc<dyn DatabaseProvider>,
+    pub storage: Arc<dyn StorageProvider>,
+    pub llm: Arc<dyn LlmProvider>,
     pub plugin_runner: Arc<dyn PluginRunner>,
 }
 
@@ -104,9 +104,9 @@ pub fn create_router(ctx: Arc<ServerContext>) -> Router {
     let site = site::router().with_state(ctx);
 
     Router::new()
-        .route("/_emdash/health",           get(health_check))
+        .route("/_emdash/health", get(health_check))
         .route("/_emdash/api/openapi.json", get(openapi_json))
-        .route("/_emdash/docs",             get(swagger_ui))
+        .route("/_emdash/docs", get(swagger_ui))
         .merge(api)
         .merge(site)
         .layer(CorsLayer::permissive())
@@ -120,12 +120,14 @@ pub fn create_api_doc() -> utoipa::openapi::OpenApi {
 
 // ── Internal handlers ─────────────────────────────────────────────────────────
 
-async fn health_check() -> &'static str { "OK" }
+async fn health_check() -> &'static str {
+    "OK"
+}
 
 /// Serve the OpenAPI 3.1 spec as JSON.
 async fn openapi_json() -> axum::response::Response {
-    let json = serde_json::to_string_pretty(&ApiDoc::openapi())
-        .unwrap_or_else(|_| "{}".to_string());
+    let json =
+        serde_json::to_string_pretty(&ApiDoc::openapi()).unwrap_or_else(|_| "{}".to_string());
     axum::response::Response::builder()
         .header("content-type", "application/json; charset=utf-8")
         .body(axum::body::Body::from(json))
@@ -134,7 +136,8 @@ async fn openapi_json() -> axum::response::Response {
 
 /// Serve the Swagger UI HTML (loads swagger-ui from CDN — no extra dep needed).
 async fn swagger_ui() -> Html<&'static str> {
-    Html(r##"<!doctype html>
+    Html(
+        r##"<!doctype html>
 <html>
 <head>
   <title>EmDash API — Swagger UI</title>
@@ -153,5 +156,6 @@ async fn swagger_ui() -> Html<&'static str> {
     });
   </script>
 </body>
-</html>"##)
+</html>"##,
+    )
 }

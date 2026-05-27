@@ -261,6 +261,6 @@ jobs:
       - name: fmt
         run: cargo fmt --check
       - name: clippy
-        run: cargo clippy --deny warnings
+        run: cargo clippy -- -D warnings
       - name: test
         run: cargo test

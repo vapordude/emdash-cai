@@ -1,31 +1,37 @@
-use axum::{Json, extract::{Path, State}};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::Utc;
 
+use axum::{
+    Router,
+    routing::{delete, get},
+};
 use emdash_core::ApiError;
-use axum::{Router, routing::{delete, get, post}};
 
 use super::common::ApiEnvelope;
 use crate::ServerContext;
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ApiToken {
-    pub id:           String,
-    pub user_id:      String,
-    pub name:         String,
-    pub scopes:       Vec<String>,
-    pub created_at:   String,
+    pub id: String,
+    pub user_id: String,
+    pub name: String,
+    pub scopes: Vec<String>,
+    pub created_at: String,
     pub last_used_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateApiTokenBody {
     pub user_id: String,
-    pub name:    String,
-    pub scopes:  Option<Vec<String>>,
+    pub name: String,
+    pub scopes: Option<Vec<String>>,
 }
 
 /// List API tokens (token hashes are never returned).
@@ -37,7 +43,8 @@ pub struct CreateApiTokenBody {
 pub async fn list_api_tokens(
     State(ctx): State<Arc<ServerContext>>,
 ) -> Result<ApiEnvelope<Vec<Value>>, ApiError> {
-    let rows = ctx.db
+    let rows = ctx
+        .db
         .query(
             "SELECT id, user_id, name, scopes, created_at, last_used_at \
              FROM _emdash_api_tokens ORDER BY created_at DESC",
@@ -62,9 +69,9 @@ pub async fn create_api_token(
     State(ctx): State<Arc<ServerContext>>,
     Json(body): Json<CreateApiTokenBody>,
 ) -> Result<(axum::http::StatusCode, ApiEnvelope<Value>), ApiError> {
-    let id     = Uuid::new_v4().to_string();
-    let token  = Uuid::new_v4().to_string().replace('-', "");
-    let now    = Utc::now().to_rfc3339();
+    let id = Uuid::new_v4().to_string();
+    let token = Uuid::new_v4().to_string().replace('-', "");
+    let now = Utc::now().to_rfc3339();
     let scopes = serde_json::to_string(&body.scopes.unwrap_or_default())
         .unwrap_or_else(|_| "[]".to_string());
 
@@ -129,6 +136,9 @@ fn sha256_hex(data: &[u8]) -> String {
 
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
-        .route("/_emdash/api/auth/tokens", get(list_api_tokens).post(create_api_token))
+        .route(
+            "/_emdash/api/auth/tokens",
+            get(list_api_tokens).post(create_api_token),
+        )
         .route("/_emdash/api/auth/tokens/{id}", delete(revoke_api_token))
 }

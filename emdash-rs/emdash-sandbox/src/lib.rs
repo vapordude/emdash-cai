@@ -27,23 +27,23 @@ pub trait PluginRunner: Send + Sync {
 /// Capability grants for a plugin sandbox.
 #[derive(Debug, Clone)]
 pub struct SandboxConfig {
-    pub max_memory_mb:  u32,
-    pub allow_network:  bool,
-    pub allow_db_read:  bool,
+    pub max_memory_mb: u32,
+    pub allow_network: bool,
+    pub allow_db_read: bool,
     pub allow_db_write: bool,
-    pub allow_storage:  bool,
-    pub allow_llm:      bool,
+    pub allow_storage: bool,
+    pub allow_llm: bool,
 }
 
 impl Default for SandboxConfig {
     fn default() -> Self {
         Self {
-            max_memory_mb:  16,
-            allow_network:  false,
-            allow_db_read:  true,
+            max_memory_mb: 16,
+            allow_network: false,
+            allow_db_read: true,
             allow_db_write: false,
-            allow_storage:  false,
-            allow_llm:      false,
+            allow_storage: false,
+            allow_llm: false,
         }
     }
 }
@@ -62,7 +62,12 @@ impl PluginRunner for NoopPluginRunner {
         ))
     }
 
-    async fn execute_hook(&self, _id: &str, _hook: &str, _payload: Value) -> Result<Value, ApiError> {
+    async fn execute_hook(
+        &self,
+        _id: &str,
+        _hook: &str,
+        _payload: Value,
+    ) -> Result<Value, ApiError> {
         Err(ApiError::Internal(
             "plugin sandbox not enabled (compile with --features wasmtime-sandbox)".into(),
         ))
@@ -87,15 +92,19 @@ pub mod wasm {
 
     /// Wasmtime-based sandbox.  Modules are compiled once and cached.
     pub struct WasmPluginRunner {
-        engine:  Engine,
+        engine: Engine,
         modules: DashMap<String, Module>,
-        config:  SandboxConfig,
+        config: SandboxConfig,
     }
 
     impl WasmPluginRunner {
         pub fn new(config: SandboxConfig) -> Result<Self, ApiError> {
             let engine = Engine::default();
-            Ok(Self { engine, modules: DashMap::new(), config })
+            Ok(Self {
+                engine,
+                modules: DashMap::new(),
+                config,
+            })
         }
     }
 
@@ -115,9 +124,10 @@ pub mod wasm {
             hook_name: &str,
             payload: Value,
         ) -> Result<Value, ApiError> {
-            let module = self.modules.get(plugin_id).ok_or_else(|| {
-                ApiError::NotFound(format!("plugin '{plugin_id}' not loaded"))
-            })?;
+            let module = self
+                .modules
+                .get(plugin_id)
+                .ok_or_else(|| ApiError::NotFound(format!("plugin '{plugin_id}' not loaded")))?;
 
             let mut linker: Linker<()> = Linker::new(&self.engine);
 
@@ -125,12 +135,20 @@ pub mod wasm {
             // Each host fn is only linked if the capability is granted.
             if self.config.allow_db_read {
                 linker
-                    .func_wrap("env", "db_query", |_caller: wasmtime::Caller<'_, ()>| -> i32 { 0 })
+                    .func_wrap(
+                        "env",
+                        "db_query",
+                        |_caller: wasmtime::Caller<'_, ()>| -> i32 { 0 },
+                    )
                     .map_err(|e| ApiError::Internal(e.to_string()))?;
             }
             if self.config.allow_db_write {
                 linker
-                    .func_wrap("env", "db_execute", |_caller: wasmtime::Caller<'_, ()>| -> i32 { 0 })
+                    .func_wrap(
+                        "env",
+                        "db_execute",
+                        |_caller: wasmtime::Caller<'_, ()>| -> i32 { 0 },
+                    )
                     .map_err(|e| ApiError::Internal(e.to_string()))?;
             }
 
@@ -146,9 +164,9 @@ pub mod wasm {
                     ApiError::NotFound(format!("hook '{hook_name}' not exported by '{plugin_id}'"))
                 })?;
 
-            let _result = func
-                .call(&mut store, ())
-                .map_err(|e| ApiError::Internal(format!("wasm trap {plugin_id}/{hook_name}: {e}")))?;
+            let _result = func.call(&mut store, ()).map_err(|e| {
+                ApiError::Internal(format!("wasm trap {plugin_id}/{hook_name}: {e}"))
+            })?;
 
             tracing::info!(plugin_id, hook_name, "hook executed");
             // Return the payload unchanged for now; full data exchange via Wasm

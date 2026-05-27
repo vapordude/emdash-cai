@@ -1,13 +1,16 @@
-use serde_json::Value;
 use std::sync::Arc;
 
-use emdash_core::ApiError;
 use crate::ServerContext;
+use emdash_core::ApiError;
 
 /// Generate an XML sitemap covering all published content across all collections.
 pub async fn generate(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
-    let site_url = ctx.db
-        .query("SELECT value FROM _emdash_settings WHERE key = 'site_url'", vec![])
+    let site_url = ctx
+        .db
+        .query(
+            "SELECT value FROM _emdash_settings WHERE key = 'site_url'",
+            vec![],
+        )
         .await?
         .into_iter()
         .next()
@@ -24,7 +27,7 @@ pub async fn generate(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
     for col in &collections {
         let name = match col["name"].as_str() {
             Some(n) => n,
-            None    => continue,
+            None => continue,
         };
         let table = format!("ec_{name}");
         let items = ctx.db
@@ -38,7 +41,7 @@ pub async fn generate(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
             .unwrap_or_default();
 
         for item in &items {
-            let slug    = item["slug"].as_str().unwrap_or("");
+            let slug = item["slug"].as_str().unwrap_or("");
             let lastmod = item["updated_at"].as_str().unwrap_or("");
             urls.push_str(&format!(
                 "<url><loc>{site_url}/{name}/{slug}</loc><lastmod>{lastmod}</lastmod></url>\n"

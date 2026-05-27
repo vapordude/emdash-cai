@@ -1,39 +1,45 @@
-use axum::{Json, extract::{Path, State}};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::Utc;
 
+use axum::{
+    Router,
+    routing::{delete, get, post},
+};
 use emdash_core::ApiError;
-use axum::{Router, routing::{delete, get, post}};
 
 use super::common::ApiEnvelope;
 use crate::ServerContext;
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Plugin {
-    pub id:           String,
-    pub plugin_id:    String,
-    pub name:         String,
-    pub wasm_path:    String,
+    pub id: String,
+    pub plugin_id: String,
+    pub name: String,
+    pub wasm_path: String,
     pub capabilities: Vec<String>,
-    pub enabled:      bool,
-    pub created_at:   String,
+    pub enabled: bool,
+    pub created_at: String,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct InstallPluginBody {
-    pub plugin_id:    String,
-    pub name:         String,
-    pub wasm_path:    String,
+    pub plugin_id: String,
+    pub name: String,
+    pub wasm_path: String,
     pub capabilities: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct ExecuteHookBody {
     pub hook_name: String,
-    pub payload:   Value,
+    pub payload: Value,
 }
 
 /// List installed plugins.
@@ -62,8 +68,8 @@ pub async fn install_plugin(
     State(ctx): State<Arc<ServerContext>>,
     Json(body): Json<InstallPluginBody>,
 ) -> Result<(axum::http::StatusCode, ApiEnvelope<Value>), ApiError> {
-    let id   = Uuid::new_v4().to_string();
-    let now  = Utc::now().to_rfc3339();
+    let id = Uuid::new_v4().to_string();
+    let now = Utc::now().to_rfc3339();
     let caps = serde_json::to_string(&body.capabilities.unwrap_or_default())
         .unwrap_or_else(|_| "[]".to_string());
 
@@ -97,7 +103,10 @@ pub async fn install_plugin(
         }
     }
 
-    let item = ctx.db.get_by_id("_emdash_plugins", &id).await?
+    let item = ctx
+        .db
+        .get_by_id("_emdash_plugins", &id)
+        .await?
         .ok_or_else(|| ApiError::Internal("insert failed".into()))?;
     Ok((axum::http::StatusCode::CREATED, ApiEnvelope::new(item)))
 }
@@ -120,7 +129,9 @@ pub async fn uninstall_plugin(
             vec![Value::String(plugin_id.clone())],
         )
         .await?;
-    Ok(ApiEnvelope::new(serde_json::json!({ "uninstalled": plugin_id })))
+    Ok(ApiEnvelope::new(
+        serde_json::json!({ "uninstalled": plugin_id }),
+    ))
 }
 
 /// Manually invoke a lifecycle hook on a plugin (for testing).
@@ -136,7 +147,8 @@ pub async fn execute_hook(
     Path(plugin_id): Path<String>,
     Json(body): Json<ExecuteHookBody>,
 ) -> Result<ApiEnvelope<Value>, ApiError> {
-    let result = ctx.plugin_runner
+    let result = ctx
+        .plugin_runner
         .execute_hook(&plugin_id, &body.hook_name, body.payload)
         .await?;
     Ok(ApiEnvelope::new(result))
@@ -157,7 +169,10 @@ pub async fn list_loaded_plugins(
 
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
-        .route("/_emdash/api/plugins", get(list_plugins).post(install_plugin))
+        .route(
+            "/_emdash/api/plugins",
+            get(list_plugins).post(install_plugin),
+        )
         .route("/_emdash/api/plugins/loaded", get(list_loaded_plugins))
         .route("/_emdash/api/plugins/{plugin_id}", delete(uninstall_plugin))
         .route("/_emdash/api/plugins/{plugin_id}/hooks", post(execute_hook))

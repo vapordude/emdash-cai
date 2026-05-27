@@ -1,14 +1,17 @@
-use axum::{Json, extract::{Path, State}};
-use serde::{Deserialize, Serialize};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use chrono::Utc;
+use serde::Deserialize;
 use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::Utc;
 
+use axum::{Router, routing::get};
 use emdash_core::ApiError;
-use emdash_db::{BespokeDb, ColumnDef, ColumnType};
-use emdash_schema::{Collection, Field, FieldType};
-use axum::{Router, routing::{delete, get, post}};
+use emdash_db::ColumnType;
+use emdash_schema::FieldType;
 
 use super::common::ApiEnvelope;
 use crate::ServerContext;
@@ -17,28 +20,28 @@ use crate::ServerContext;
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateCollectionBody {
-    pub name:        String,
-    pub title:       String,
+    pub name: String,
+    pub title: String,
     pub description: Option<String>,
-    pub is_feed:     Option<bool>,
+    pub is_feed: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateFieldBody {
-    pub name:       String,
-    pub title:      String,
+    pub name: String,
+    pub title: String,
     pub field_type: FieldType,
-    pub required:   Option<bool>,
+    pub required: Option<bool>,
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn field_type_to_col(ft: &FieldType) -> ColumnType {
     match ft {
-        FieldType::Number    => ColumnType::Float,
-        FieldType::Boolean   => ColumnType::Boolean,
+        FieldType::Number => ColumnType::Float,
+        FieldType::Boolean => ColumnType::Boolean,
         FieldType::Date | FieldType::Datetime => ColumnType::Timestamp,
-        _                    => ColumnType::Text,
+        _ => ColumnType::Text,
     }
 }
 
@@ -71,14 +74,14 @@ pub async fn get_collection(
     State(ctx): State<Arc<ServerContext>>,
     Path(name): Path<String>,
 ) -> Result<ApiEnvelope<Value>, ApiError> {
-    let rows = ctx.db
+    let rows = ctx
+        .db
         .query(
             "SELECT * FROM _emdash_collections WHERE name = ?",
             vec![Value::String(name.clone())],
         )
         .await?;
-    let col = rows.into_iter().next()
-        .ok_or_else(|| ApiError::NotFound(name))?;
+    let col = rows.into_iter().next().ok_or(ApiError::NotFound(name))?;
     Ok(ApiEnvelope::new(col))
 }
 
@@ -99,7 +102,7 @@ pub async fn create_collection(
 ) -> Result<(axum::http::StatusCode, ApiEnvelope<Value>), ApiError> {
     emdash_db::validate_identifier(&body.name)?;
 
-    let id  = Uuid::new_v4().to_string();
+    let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     let is_feed = body.is_feed.unwrap_or(false) as i64;
 
@@ -139,7 +142,10 @@ pub async fn create_collection(
         )
         .await?;
 
-    let item = ctx.db.get_by_id("_emdash_collections", &id).await?
+    let item = ctx
+        .db
+        .get_by_id("_emdash_collections", &id)
+        .await?
         .ok_or_else(|| ApiError::Internal("insert failed".into()))?;
 
     Ok((axum::http::StatusCode::CREATED, ApiEnvelope::new(item)))
@@ -183,7 +189,8 @@ pub async fn list_fields(
     State(ctx): State<Arc<ServerContext>>,
     Path(name): Path<String>,
 ) -> Result<ApiEnvelope<Vec<Value>>, ApiError> {
-    let rows = ctx.db
+    let rows = ctx
+        .db
         .query(
             "SELECT f.* FROM _emdash_fields f \
              JOIN _emdash_collections c ON c.id = f.collection_id \
@@ -214,23 +221,26 @@ pub async fn create_field(
     emdash_db::validate_identifier(&name)?;
 
     // Resolve the collection ID.
-    let cols = ctx.db
+    let cols = ctx
+        .db
         .query(
             "SELECT id FROM _emdash_collections WHERE name = ?",
             vec![Value::String(name.clone())],
         )
         .await?;
-    let col = cols.into_iter().next()
+    let col = cols
+        .into_iter()
+        .next()
         .ok_or_else(|| ApiError::NotFound(name.clone()))?;
     let collection_id = col["id"]
         .as_str()
         .ok_or_else(|| ApiError::Internal("missing id".into()))?
         .to_string();
 
-    let id       = Uuid::new_v4().to_string();
-    let now      = Utc::now().to_rfc3339();
-    let ft_json  = serde_json::to_string(&body.field_type)
-        .map_err(|e| ApiError::Internal(e.to_string()))?;
+    let id = Uuid::new_v4().to_string();
+    let now = Utc::now().to_rfc3339();
+    let ft_json =
+        serde_json::to_string(&body.field_type).map_err(|e| ApiError::Internal(e.to_string()))?;
     let required = body.required.unwrap_or(false) as i64;
 
     ctx.db
@@ -260,14 +270,18 @@ pub async fn create_field(
         .execute(
             &format!(
                 "ALTER TABLE ec_{name} ADD COLUMN {} {}",
-                body.name, col_type.to_sql()
+                body.name,
+                col_type.to_sql()
             ),
             vec![],
         )
         .await
         .ok(); // Ignore error if column already exists (SQLite doesn't have IF NOT EXISTS for ALTER)
 
-    let item = ctx.db.get_by_id("_emdash_fields", &id).await?
+    let item = ctx
+        .db
+        .get_by_id("_emdash_fields", &id)
+        .await?
         .ok_or_else(|| ApiError::Internal("insert failed".into()))?;
 
     Ok((axum::http::StatusCode::CREATED, ApiEnvelope::new(item)))
@@ -277,7 +291,16 @@ pub async fn create_field(
 
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
-        .route("/_emdash/api/schema/collections", get(list_collections).post(create_collection))
-        .route("/_emdash/api/schema/collections/{name}", get(get_collection).delete(delete_collection))
-        .route("/_emdash/api/schema/collections/{name}/fields", get(list_fields).post(create_field))
+        .route(
+            "/_emdash/api/schema/collections",
+            get(list_collections).post(create_collection),
+        )
+        .route(
+            "/_emdash/api/schema/collections/{name}",
+            get(get_collection).delete(delete_collection),
+        )
+        .route(
+            "/_emdash/api/schema/collections/{name}/fields",
+            get(list_fields).post(create_field),
+        )
 }

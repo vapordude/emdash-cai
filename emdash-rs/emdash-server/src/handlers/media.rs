@@ -1,35 +1,38 @@
-use axum::{Json, extract::{Path, State}};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::Utc;
 
+use axum::{Router, routing::get};
 use emdash_core::ApiError;
-use axum::{Router, routing::{delete, get, patch, post}};
 
 use super::common::ApiEnvelope;
 use crate::ServerContext;
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct MediaItem {
-    pub id:           String,
-    pub filename:     String,
-    pub mime_type:    String,
-    pub size:         i64,
+    pub id: String,
+    pub filename: String,
+    pub mime_type: String,
+    pub size: i64,
     pub storage_path: String,
-    pub alt:          Option<String>,
-    pub created_at:   String,
-    pub updated_at:   String,
+    pub alt: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateMediaBody {
-    pub filename:     String,
-    pub mime_type:    String,
-    pub size:         i64,
+    pub filename: String,
+    pub mime_type: String,
+    pub size: i64,
     pub storage_path: String,
-    pub alt:          Option<String>,
+    pub alt: Option<String>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
@@ -64,8 +67,11 @@ pub async fn get_media(
     State(ctx): State<Arc<ServerContext>>,
     Path(id): Path<String>,
 ) -> Result<ApiEnvelope<Value>, ApiError> {
-    let item = ctx.db.get_by_id("_emdash_media", &id).await?
-        .ok_or_else(|| ApiError::NotFound(id))?;
+    let item = ctx
+        .db
+        .get_by_id("_emdash_media", &id)
+        .await?
+        .ok_or(ApiError::NotFound(id))?;
     Ok(ApiEnvelope::new(item))
 }
 
@@ -83,7 +89,7 @@ pub async fn create_media(
     State(ctx): State<Arc<ServerContext>>,
     Json(body): Json<CreateMediaBody>,
 ) -> Result<(axum::http::StatusCode, ApiEnvelope<Value>), ApiError> {
-    let id  = Uuid::new_v4().to_string();
+    let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     ctx.db
         .execute(
@@ -101,7 +107,10 @@ pub async fn create_media(
             ],
         )
         .await?;
-    let item = ctx.db.get_by_id("_emdash_media", &id).await?
+    let item = ctx
+        .db
+        .get_by_id("_emdash_media", &id)
+        .await?
         .ok_or_else(|| ApiError::Internal("insert failed".into()))?;
     Ok((axum::http::StatusCode::CREATED, ApiEnvelope::new(item)))
 }
@@ -132,8 +141,11 @@ pub async fn update_media(
             )
             .await?;
     }
-    let item = ctx.db.get_by_id("_emdash_media", &id).await?
-        .ok_or_else(|| ApiError::NotFound(id))?;
+    let item = ctx
+        .db
+        .get_by_id("_emdash_media", &id)
+        .await?
+        .ok_or(ApiError::NotFound(id))?;
     Ok(ApiEnvelope::new(item))
 }
 
@@ -149,13 +161,16 @@ pub async fn delete_media(
     Path(id): Path<String>,
 ) -> Result<ApiEnvelope<Value>, ApiError> {
     // Fetch storage path before deleting the record.
-    if let Some(item) = ctx.db.get_by_id("_emdash_media", &id).await? {
-        if let Some(path) = item["storage_path"].as_str() {
-            ctx.storage.delete_file(path).await.ok();
-        }
+    if let Some(item) = ctx.db.get_by_id("_emdash_media", &id).await?
+        && let Some(path) = item["storage_path"].as_str()
+    {
+        ctx.storage.delete_file(path).await.ok();
     }
     ctx.db
-        .execute("DELETE FROM _emdash_media WHERE id = ?", vec![Value::String(id.clone())])
+        .execute(
+            "DELETE FROM _emdash_media WHERE id = ?",
+            vec![Value::String(id.clone())],
+        )
         .await?;
     Ok(ApiEnvelope::new(serde_json::json!({ "deleted": id })))
 }
@@ -163,5 +178,8 @@ pub async fn delete_media(
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
         .route("/_emdash/api/media", get(list_media).post(create_media))
-        .route("/_emdash/api/media/{id}", get(get_media).patch(update_media).delete(delete_media))
+        .route(
+            "/_emdash/api/media/{id}",
+            get(get_media).patch(update_media).delete(delete_media),
+        )
 }

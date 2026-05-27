@@ -1,47 +1,53 @@
-use axum::{Json, extract::{Path, State}};
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 use uuid::Uuid;
-use chrono::Utc;
 
+use axum::{
+    Router,
+    routing::{delete, get},
+};
 use emdash_core::ApiError;
-use axum::{Router, routing::{delete, get, post}};
 
 use super::common::ApiEnvelope;
 use crate::ServerContext;
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Taxonomy {
-    pub id:          String,
-    pub name:        String,
-    pub title:       String,
+    pub id: String,
+    pub name: String,
+    pub title: String,
     pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct Term {
-    pub id:          String,
+    pub id: String,
     pub taxonomy_id: String,
-    pub name:        String,
-    pub slug:        String,
+    pub name: String,
+    pub slug: String,
     pub description: Option<String>,
-    pub parent_id:   Option<String>,
+    pub parent_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateTaxonomyBody {
-    pub name:        String,
-    pub title:       String,
+    pub name: String,
+    pub title: String,
     pub description: Option<String>,
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateTermBody {
-    pub name:        String,
-    pub slug:        String,
+    pub name: String,
+    pub slug: String,
     pub description: Option<String>,
-    pub parent_id:   Option<String>,
+    pub parent_id: Option<String>,
 }
 
 // ── Taxonomy CRUD ─────────────────────────────────────────────────────────────
@@ -70,7 +76,7 @@ pub async fn create_taxonomy(
     State(ctx): State<Arc<ServerContext>>,
     Json(body): Json<CreateTaxonomyBody>,
 ) -> Result<(axum::http::StatusCode, ApiEnvelope<Value>), ApiError> {
-    let id  = Uuid::new_v4().to_string();
+    let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     ctx.db
         .execute(
@@ -86,7 +92,10 @@ pub async fn create_taxonomy(
             ],
         )
         .await?;
-    let item = ctx.db.get_by_id("_emdash_taxonomies", &id).await?
+    let item = ctx
+        .db
+        .get_by_id("_emdash_taxonomies", &id)
+        .await?
         .ok_or_else(|| ApiError::Internal("insert failed".into()))?;
     Ok((axum::http::StatusCode::CREATED, ApiEnvelope::new(item)))
 }
@@ -103,7 +112,10 @@ pub async fn delete_taxonomy(
     Path(id): Path<String>,
 ) -> Result<ApiEnvelope<Value>, ApiError> {
     ctx.db
-        .execute("DELETE FROM _emdash_taxonomies WHERE id = ?", vec![Value::String(id.clone())])
+        .execute(
+            "DELETE FROM _emdash_taxonomies WHERE id = ?",
+            vec![Value::String(id.clone())],
+        )
         .await?;
     Ok(ApiEnvelope::new(serde_json::json!({ "deleted": id })))
 }
@@ -121,7 +133,8 @@ pub async fn list_terms(
     State(ctx): State<Arc<ServerContext>>,
     Path(taxonomy_id): Path<String>,
 ) -> Result<ApiEnvelope<Vec<Value>>, ApiError> {
-    let rows = ctx.db
+    let rows = ctx
+        .db
         .query(
             "SELECT * FROM _emdash_terms WHERE taxonomy_id = ? ORDER BY name",
             vec![Value::String(taxonomy_id)],
@@ -143,7 +156,7 @@ pub async fn create_term(
     Path(taxonomy_id): Path<String>,
     Json(body): Json<CreateTermBody>,
 ) -> Result<(axum::http::StatusCode, ApiEnvelope<Value>), ApiError> {
-    let id  = Uuid::new_v4().to_string();
+    let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     ctx.db
         .execute(
@@ -161,14 +174,23 @@ pub async fn create_term(
             ],
         )
         .await?;
-    let item = ctx.db.get_by_id("_emdash_terms", &id).await?
+    let item = ctx
+        .db
+        .get_by_id("_emdash_terms", &id)
+        .await?
         .ok_or_else(|| ApiError::Internal("insert failed".into()))?;
     Ok((axum::http::StatusCode::CREATED, ApiEnvelope::new(item)))
 }
 
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
-        .route("/_emdash/api/taxonomies", get(list_taxonomies).post(create_taxonomy))
+        .route(
+            "/_emdash/api/taxonomies",
+            get(list_taxonomies).post(create_taxonomy),
+        )
         .route("/_emdash/api/taxonomies/{id}", delete(delete_taxonomy))
-        .route("/_emdash/api/taxonomies/{taxonomy_id}/terms", get(list_terms).post(create_term))
+        .route(
+            "/_emdash/api/taxonomies/{taxonomy_id}/terms",
+            get(list_terms).post(create_term),
+        )
 }

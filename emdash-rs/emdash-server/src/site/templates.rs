@@ -1,9 +1,9 @@
-use minijinja::{Environment, Value as MjValue};
+use minijinja::Environment;
 use serde_json::Value;
 use std::sync::Arc;
 
-use emdash_core::ApiError;
 use crate::ServerContext;
+use emdash_core::ApiError;
 
 // ── Template environment ──────────────────────────────────────────────────────
 
@@ -24,7 +24,8 @@ fn default_env() -> Environment<'static> {
 <body>
   {% block body %}{% endblock %}
 </body>
-</html>"#.to_string(),
+</html>"#
+            .to_string(),
     )
     .ok();
 
@@ -41,7 +42,8 @@ fn default_env() -> Environment<'static> {
     </article>
   {% endfor %}
 </main>
-{% endblock %}"#.to_string(),
+{% endblock %}"#
+            .to_string(),
     )
     .ok();
 
@@ -56,7 +58,8 @@ fn default_env() -> Environment<'static> {
     <div class="content">{{ item.data }}</div>
   </article>
 </main>
-{% endblock %}"#.to_string(),
+{% endblock %}"#
+            .to_string(),
     )
     .ok();
 
@@ -67,8 +70,12 @@ fn default_env() -> Environment<'static> {
 
 /// Render the home page using the first feed-enabled collection.
 pub async fn render_home(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
-    let site_title = ctx.db
-        .query("SELECT value FROM _emdash_settings WHERE key = 'site_title'", vec![])
+    let site_title = ctx
+        .db
+        .query(
+            "SELECT value FROM _emdash_settings WHERE key = 'site_title'",
+            vec![],
+        )
         .await?
         .into_iter()
         .next()
@@ -76,8 +83,12 @@ pub async fn render_home(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
         .unwrap_or_else(|| "EmDash".to_string());
 
     // Find first feed-enabled collection for the home page.
-    let cols = ctx.db
-        .query("SELECT name FROM _emdash_collections WHERE is_feed = 1 LIMIT 1", vec![])
+    let cols = ctx
+        .db
+        .query(
+            "SELECT name FROM _emdash_collections WHERE is_feed = 1 LIMIT 1",
+            vec![],
+        )
         .await?;
 
     let (collection, items) = if let Some(col) = cols.into_iter().next() {
@@ -95,7 +106,8 @@ pub async fn render_home(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
     };
 
     let env = default_env();
-    let tmpl = env.get_template("home.html")
+    let tmpl = env
+        .get_template("home.html")
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let ctx_val = minijinja::context! {
@@ -104,7 +116,8 @@ pub async fn render_home(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
         items => serde_json::to_value(items).unwrap_or_default(),
     };
 
-    tmpl.render(ctx_val).map_err(|e| ApiError::Internal(e.to_string()))
+    tmpl.render(ctx_val)
+        .map_err(|e| ApiError::Internal(e.to_string()))
 }
 
 /// Render a single content item.
@@ -113,8 +126,12 @@ pub async fn render_page(
     collection: &str,
     slug: &str,
 ) -> Result<String, ApiError> {
-    let site_title = ctx.db
-        .query("SELECT value FROM _emdash_settings WHERE key = 'site_title'", vec![])
+    let site_title = ctx
+        .db
+        .query(
+            "SELECT value FROM _emdash_settings WHERE key = 'site_title'",
+            vec![],
+        )
         .await?
         .into_iter()
         .next()
@@ -122,18 +139,22 @@ pub async fn render_page(
         .unwrap_or_else(|| "EmDash".to_string());
 
     let table = format!("ec_{collection}");
-    let rows = ctx.db
+    let rows = ctx
+        .db
         .query(
             &format!("SELECT * FROM {table} WHERE slug = ? AND status = 'published' LIMIT 1"),
             vec![Value::String(slug.to_string())],
         )
         .await?;
 
-    let item = rows.into_iter().next()
+    let item = rows
+        .into_iter()
+        .next()
         .ok_or_else(|| ApiError::NotFound(slug.to_string()))?;
 
     let env = default_env();
-    let tmpl = env.get_template("page.html")
+    let tmpl = env
+        .get_template("page.html")
         .map_err(|e| ApiError::Internal(e.to_string()))?;
 
     let ctx_val = minijinja::context! {
@@ -142,5 +163,6 @@ pub async fn render_page(
         item => serde_json::to_value(&item).unwrap_or_default(),
     };
 
-    tmpl.render(ctx_val).map_err(|e| ApiError::Internal(e.to_string()))
+    tmpl.render(ctx_val)
+        .map_err(|e| ApiError::Internal(e.to_string()))
 }

@@ -6,10 +6,10 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 // ── Error ────────────────────────────────────────────────────────────────────
 
@@ -43,13 +43,13 @@ pub enum ApiError {
 impl ApiError {
     fn status(&self) -> StatusCode {
         match self {
-            Self::NotFound(_)      => StatusCode::NOT_FOUND,
-            Self::BadRequest(_)    => StatusCode::BAD_REQUEST,
-            Self::Unauthorized     => StatusCode::UNAUTHORIZED,
-            Self::Forbidden        => StatusCode::FORBIDDEN,
-            Self::Conflict(_)      => StatusCode::CONFLICT,
+            Self::NotFound(_) => StatusCode::NOT_FOUND,
+            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Forbidden => StatusCode::FORBIDDEN,
+            Self::Conflict(_) => StatusCode::CONFLICT,
             Self::Unprocessable(_) => StatusCode::UNPROCESSABLE_ENTITY,
-            Self::Internal(_)      => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -57,23 +57,26 @@ impl ApiError {
 /// Wire shape of an error response body.
 #[derive(Serialize, utoipa::ToSchema)]
 struct ErrorBody<'a> {
-    code:    &'a str,
+    code: &'a str,
     message: String,
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let status  = self.status();
-        let code    = match &self {
-            Self::NotFound(_)      => "NOT_FOUND",
-            Self::BadRequest(_)    => "BAD_REQUEST",
-            Self::Unauthorized     => "UNAUTHORIZED",
-            Self::Forbidden        => "FORBIDDEN",
-            Self::Conflict(_)      => "CONFLICT",
+        let status = self.status();
+        let code = match &self {
+            Self::NotFound(_) => "NOT_FOUND",
+            Self::BadRequest(_) => "BAD_REQUEST",
+            Self::Unauthorized => "UNAUTHORIZED",
+            Self::Forbidden => "FORBIDDEN",
+            Self::Conflict(_) => "CONFLICT",
             Self::Unprocessable(_) => "UNPROCESSABLE_ENTITY",
-            Self::Internal(_)      => "INTERNAL_ERROR",
+            Self::Internal(_) => "INTERNAL_ERROR",
         };
-        let body = ErrorBody { code, message: self.to_string() };
+        let body = ErrorBody {
+            code,
+            message: self.to_string(),
+        };
         (status, Json(body)).into_response()
     }
 }
@@ -84,9 +87,9 @@ impl IntoResponse for ApiError {
 #[derive(Debug, Clone)]
 pub struct RequestContext {
     pub request_id: Uuid,
-    pub user_id:    Option<Uuid>,
-    pub user_role:  Option<String>,
-    pub locale:     String,
+    pub user_id: Option<Uuid>,
+    pub user_role: Option<String>,
+    pub locale: String,
     pub started_at: DateTime<Utc>,
 }
 
@@ -94,9 +97,9 @@ impl Default for RequestContext {
     fn default() -> Self {
         Self {
             request_id: Uuid::new_v4(),
-            user_id:    None,
-            user_role:  None,
-            locale:     "en".into(),
+            user_id: None,
+            user_role: None,
+            locale: "en".into(),
             started_at: Utc::now(),
         }
     }
@@ -114,12 +117,14 @@ pub trait StorageProvider: Send + Sync {
 
 #[async_trait]
 pub trait DatabaseProvider: Send + Sync {
-    async fn query(&self, sql: &str, params: Vec<serde_json::Value>)
-        -> Result<Vec<serde_json::Value>, ApiError>;
-    async fn execute(&self, sql: &str, params: Vec<serde_json::Value>)
-        -> Result<u64, ApiError>;
+    async fn query(
+        &self,
+        sql: &str,
+        params: Vec<serde_json::Value>,
+    ) -> Result<Vec<serde_json::Value>, ApiError>;
+    async fn execute(&self, sql: &str, params: Vec<serde_json::Value>) -> Result<u64, ApiError>;
     async fn get_by_id(&self, table: &str, id: &str)
-        -> Result<Option<serde_json::Value>, ApiError>;
+    -> Result<Option<serde_json::Value>, ApiError>;
     /// Return all rows in `table` as JSON objects.
     async fn list(&self, table: &str) -> Result<Vec<serde_json::Value>, ApiError>;
 }
@@ -127,7 +132,7 @@ pub trait DatabaseProvider: Send + Sync {
 /// A single chat turn.
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct ChatMessage {
-    pub role:    String,
+    pub role: String,
     pub content: String,
 }
 
@@ -135,21 +140,20 @@ pub struct ChatMessage {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, utoipa::ToSchema)]
 pub struct LlmOptions {
     pub temperature: Option<f32>,
-    pub max_tokens:  Option<u32>,
-    pub stop:        Option<Vec<String>>,
+    pub max_tokens: Option<u32>,
+    pub stop: Option<Vec<String>>,
 }
 
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
     /// Single-prompt shorthand (wraps chat_completion internally).
-    async fn generate_text(&self, prompt: &str, opts: LlmOptions)
-        -> Result<String, ApiError>;
+    async fn generate_text(&self, prompt: &str, opts: LlmOptions) -> Result<String, ApiError>;
 
     /// Full multi-turn chat completion — primary agent interface.
     async fn chat_completion(
         &self,
         messages: Vec<ChatMessage>,
-        opts:     LlmOptions,
+        opts: LlmOptions,
     ) -> Result<String, ApiError>;
 
     /// Dense embedding vector for semantic search / RAG.

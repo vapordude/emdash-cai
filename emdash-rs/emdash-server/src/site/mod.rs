@@ -13,16 +13,18 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::sync::Arc;
 
-use emdash_core::ApiError;
 use crate::ServerContext;
+use emdash_core::ApiError;
 
 // ── Public REST API (WP REST API compatible shape) ────────────────────────────
 
 #[derive(Deserialize)]
 struct PublicListQuery {
-    page:     Option<u32>,
+    #[allow(dead_code)]
+    page: Option<u32>,
+    #[allow(dead_code)]
     per_page: Option<u32>,
-    status:   Option<String>,
+    status: Option<String>,
 }
 
 /// Public content list — matches WordPress REST API shape at `/api/v1/{collection}`.
@@ -34,7 +36,8 @@ async fn public_list(
     // Only return published content on the public API.
     let table = format!("ec_{collection}");
     let status = q.status.as_deref().unwrap_or("published");
-    let rows = ctx.db
+    let rows = ctx
+        .db
         .query(
             &format!("SELECT * FROM {table} WHERE status = ? ORDER BY created_at DESC"),
             vec![Value::String(status.to_string())],
@@ -50,7 +53,8 @@ async fn public_get(
     Path((collection, slug)): Path<(String, String)>,
 ) -> Result<axum::Json<Value>, (StatusCode, String)> {
     let table = format!("ec_{collection}");
-    let rows = ctx.db
+    let rows = ctx
+        .db
         .query(
             &format!("SELECT * FROM {table} WHERE slug = ? AND status = 'published' LIMIT 1"),
             vec![Value::String(slug.clone())],
@@ -59,7 +63,7 @@ async fn public_get(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     match rows.into_iter().next() {
         Some(item) => Ok(axum::Json(item)),
-        None       => Err((StatusCode::NOT_FOUND, format!("not found: {slug}"))),
+        None => Err((StatusCode::NOT_FOUND, format!("not found: {slug}"))),
     }
 }
 
@@ -67,12 +71,10 @@ async fn public_get(
 
 /// Site root — renders the first published item of the first collection, or
 /// the template `home.html`.
-async fn site_index(
-    State(ctx): State<Arc<ServerContext>>,
-) -> Response {
+async fn site_index(State(ctx): State<Arc<ServerContext>>) -> Response {
     match templates::render_home(&ctx).await {
         Ok(html) => Html(html).into_response(),
-        Err(e)   => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 
@@ -82,9 +84,9 @@ async fn site_page(
     Path((collection, slug)): Path<(String, String)>,
 ) -> Response {
     match templates::render_page(&ctx, &collection, &slug).await {
-        Ok(html)                                => Html(html).into_response(),
-        Err(ApiError::NotFound(_))              => (StatusCode::NOT_FOUND, "Not found").into_response(),
-        Err(e)                                  => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Ok(html) => Html(html).into_response(),
+        Err(ApiError::NotFound(_)) => (StatusCode::NOT_FOUND, "Not found").into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 
@@ -97,7 +99,8 @@ async fn rss_feed(
         Ok(xml) => (
             [(header::CONTENT_TYPE, "application/rss+xml; charset=utf-8")],
             xml,
-        ).into_response(),
+        )
+            .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
@@ -108,7 +111,8 @@ async fn xml_sitemap(State(ctx): State<Arc<ServerContext>>) -> Response {
         Ok(xml) => (
             [(header::CONTENT_TYPE, "application/xml; charset=utf-8")],
             xml,
-        ).into_response(),
+        )
+            .into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
@@ -118,12 +122,12 @@ async fn xml_sitemap(State(ctx): State<Arc<ServerContext>>) -> Response {
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
         // Public WP-compatible REST API
-        .route("/api/v1/:collection",       get(public_list))
+        .route("/api/v1/:collection", get(public_list))
         .route("/api/v1/:collection/:slug", get(public_get))
         // HTML site
-        .route("/",                         get(site_index))
-        .route("/:collection/:slug",        get(site_page))
+        .route("/", get(site_index))
+        .route("/:collection/:slug", get(site_page))
         // Feeds & sitemap
-        .route("/feeds/:collection.rss",    get(rss_feed))
-        .route("/sitemap.xml",              get(xml_sitemap))
+        .route("/feeds/:collection.rss", get(rss_feed))
+        .route("/sitemap.xml", get(xml_sitemap))
 }
