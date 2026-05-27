@@ -1,6 +1,7 @@
 pub mod handlers;
 pub mod middleware;
 pub mod site;
+pub mod util;
 
 use axum::{Router, middleware as axum_middleware, response::Html, routing::get};
 use std::sync::Arc;

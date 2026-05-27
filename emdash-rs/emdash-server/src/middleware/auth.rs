@@ -5,18 +5,11 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
 use emdash_core::{ApiError, RequestContext};
 
-use crate::ServerContext;
-
-/// SHA-256 hex digest of `data`.
-fn sha256_hex(data: &[u8]) -> String {
-    let hash = Sha256::digest(data);
-    format!("{hash:x}")
-}
+use crate::{ServerContext, util::sha256_hex};
 
 /// Axum middleware that validates Bearer tokens against `_emdash_api_tokens`.
 ///
@@ -86,9 +79,9 @@ async fn validate_token(
 
     let row = rows.into_iter().next().ok_or(ApiError::Unauthorized)?;
 
-    // Update last_used_at asynchronously — fire-and-forget; ignore error.
+    // Update last_used_at asynchronously — fire-and-forget.
     let now = chrono::Utc::now().to_rfc3339();
-    let _ = ctx
+    if let Err(e) = ctx
         .db
         .execute(
             "UPDATE _emdash_api_tokens SET last_used_at = ? WHERE token_hash = ?",
@@ -97,7 +90,10 @@ async fn validate_token(
                 Value::String(hash.to_string()),
             ],
         )
-        .await;
+        .await
+    {
+        tracing::warn!(error = %e, "failed to update token last_used_at");
+    }
 
     let user_id = row["user_id"]
         .as_str()

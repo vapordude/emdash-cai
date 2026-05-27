@@ -51,6 +51,8 @@ pub struct ListQuery {
     pub per_page: Option<u32>,
 }
 
+/// Page size used when the caller does not supply `per_page`. Matches common
+/// CMS conventions and keeps response payloads small by default.
 const DEFAULT_PER_PAGE: u32 = 20;
 
 // ── Handlers ──────────────────────────────────────────────────────────────────

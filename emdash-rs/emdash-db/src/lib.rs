@@ -341,7 +341,11 @@ impl DatabaseProvider for BespokeDb {
                 col_type: match c.sql_type {
                     "INTEGER" => ColumnType::Integer,
                     "REAL" => ColumnType::Float,
-                    "TEXT" | _ => ColumnType::Text,
+                    "TEXT" => ColumnType::Text,
+                    other => {
+                        tracing::warn!(sql_type = other, "unrecognised SQL type, falling back to TEXT");
+                        ColumnType::Text
+                    }
                 },
                 required: c.required,
                 unique: c.unique,

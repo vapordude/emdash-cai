@@ -109,9 +109,7 @@ async fn create_token(ctx: Arc<ServerContext>) -> String {
 }
 
 fn sha256_hex(data: &[u8]) -> String {
-    use sha2::{Digest, Sha256};
-    let hash = Sha256::digest(data);
-    format!("{hash:x}")
+    emdash_server::util::sha256_hex(data)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
