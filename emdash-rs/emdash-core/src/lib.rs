@@ -125,8 +125,34 @@ pub trait DatabaseProvider: Send + Sync {
     async fn execute(&self, sql: &str, params: Vec<serde_json::Value>) -> Result<u64, ApiError>;
     async fn get_by_id(&self, table: &str, id: &str)
     -> Result<Option<serde_json::Value>, ApiError>;
-    /// Return all rows in `table` as JSON objects.
+    /// Return all rows in `table` as JSON objects (unbounded — prefer `list_page`).
     async fn list(&self, table: &str) -> Result<Vec<serde_json::Value>, ApiError>;
+    /// Return a page of rows from `table` ordered by `created_at DESC`.
+    async fn list_page(
+        &self,
+        table: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<serde_json::Value>, ApiError>;
+    /// Return the total row count for `table`.
+    async fn count(&self, table: &str) -> Result<u64, ApiError>;
+    /// Create a dynamic collection table (`ec_<name>`) with standard base columns.
+    /// Extra column definitions are appended after the base set.
+    async fn create_collection_table(
+        &self,
+        collection_name: &str,
+        extra_columns: &[CollectionColumn],
+    ) -> Result<(), ApiError>;
+}
+
+/// Portable column definition used by `DatabaseProvider::create_collection_table`.
+/// Kept in `emdash-core` so all crates can reference it without depending on `emdash-db`.
+#[derive(Debug, Clone)]
+pub struct CollectionColumn {
+    pub name: String,
+    pub sql_type: &'static str,
+    pub required: bool,
+    pub unique: bool,
 }
 
 /// A single chat turn.

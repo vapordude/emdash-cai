@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use emdash_core::{ApiError, DatabaseProvider};
+use emdash_core::{ApiError, CollectionColumn, DatabaseProvider};
 use serde_json::Value;
 use sqlx::{Pool, Row, Sqlite, SqlitePool};
 
@@ -136,12 +136,13 @@ impl BespokeDb {
         let table = format!("ec_{collection_name}");
 
         let mut col_defs = vec![
-            "  id         TEXT PRIMARY KEY".to_string(),
-            "  status     TEXT NOT NULL DEFAULT 'draft'".to_string(),
-            "  slug       TEXT".to_string(),
+            "  id           TEXT PRIMARY KEY".to_string(),
+            "  status       TEXT NOT NULL DEFAULT 'draft'".to_string(),
+            "  slug         TEXT".to_string(),
+            "  data         TEXT".to_string(),
             "  published_at TEXT".to_string(),
-            "  created_at TEXT NOT NULL DEFAULT (datetime('now'))".to_string(),
-            "  updated_at TEXT NOT NULL DEFAULT (datetime('now'))".to_string(),
+            "  created_at   TEXT NOT NULL DEFAULT (datetime('now'))".to_string(),
+            "  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))".to_string(),
         ];
 
         for col in columns {
@@ -182,7 +183,7 @@ impl BespokeDb {
         Ok(row_opt.map(|row| row_to_json(&row)))
     }
 
-    /// List all rows from a table as JSON objects.
+    /// List all rows from a table as JSON objects (unbounded).
     pub async fn list(&self, table: &str) -> Result<Vec<Value>, ApiError> {
         validate_identifier(table)?;
         let sql = format!("SELECT * FROM {table}");
@@ -192,6 +193,36 @@ impl BespokeDb {
             .map_err(|e| ApiError::Internal(e.to_string()))?;
 
         Ok(rows.iter().map(row_to_json).collect())
+    }
+
+    /// Return a page of rows ordered by `created_at DESC`.
+    pub async fn list_page(
+        &self,
+        table: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<Value>, ApiError> {
+        validate_identifier(table)?;
+        let sql =
+            format!("SELECT * FROM {table} ORDER BY created_at DESC LIMIT ? OFFSET ?");
+        let rows = sqlx::query(&sql)
+            .bind(limit as i64)
+            .bind(offset as i64)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| ApiError::Internal(e.to_string()))?;
+        Ok(rows.iter().map(row_to_json).collect())
+    }
+
+    /// Return the total number of rows in `table`.
+    pub async fn count(&self, table: &str) -> Result<u64, ApiError> {
+        validate_identifier(table)?;
+        let sql = format!("SELECT COUNT(*) FROM {table}");
+        let n: i64 = sqlx::query_scalar(&sql)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| ApiError::Internal(e.to_string()))?;
+        Ok(n.max(0) as u64)
     }
 }
 
@@ -282,5 +313,40 @@ impl DatabaseProvider for BespokeDb {
 
     async fn list(&self, table: &str) -> Result<Vec<Value>, ApiError> {
         BespokeDb::list(self, table).await
+    }
+
+    async fn list_page(
+        &self,
+        table: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<Value>, ApiError> {
+        BespokeDb::list_page(self, table, limit, offset).await
+    }
+
+    async fn count(&self, table: &str) -> Result<u64, ApiError> {
+        BespokeDb::count(self, table).await
+    }
+
+    async fn create_collection_table(
+        &self,
+        collection_name: &str,
+        extra_columns: &[CollectionColumn],
+    ) -> Result<(), ApiError> {
+        // Translate the portable `CollectionColumn` type into the local `ColumnDef`.
+        let cols: Vec<ColumnDef> = extra_columns
+            .iter()
+            .map(|c| ColumnDef {
+                name: c.name.clone(),
+                col_type: match c.sql_type {
+                    "INTEGER" => ColumnType::Integer,
+                    "REAL" => ColumnType::Float,
+                    "TEXT" | _ => ColumnType::Text,
+                },
+                required: c.required,
+                unique: c.unique,
+            })
+            .collect();
+        BespokeDb::create_collection_table(self, collection_name, &cols).await
     }
 }

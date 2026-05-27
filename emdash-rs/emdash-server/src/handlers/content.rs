@@ -14,7 +14,7 @@ use axum::{
 use emdash_core::ApiError;
 use emdash_db::validate_identifier;
 
-use super::common::ApiEnvelope;
+use super::common::{ApiEnvelope, PaginationMeta};
 use crate::ServerContext;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -33,7 +33,6 @@ pub struct ContentItem {
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct CreateContentBody {
-    pub collection: String,
     pub slug: Option<String>,
     pub data: serde_json::Value,
 }
@@ -47,23 +46,24 @@ pub struct UpdateContentBody {
 
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {
-    pub collection: String,
     pub status: Option<String>,
     pub page: Option<u32>,
     pub per_page: Option<u32>,
 }
 
+const DEFAULT_PER_PAGE: u32 = 20;
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 /// List content items in a collection.
 #[utoipa::path(
-    get, path = "/_emdash/api/content",
+    get, path = "/_emdash/api/content/{collection}",
     tag = "content",
     params(
-        ("collection" = String, Query, description = "Collection name"),
+        ("collection" = String, Path,  description = "Collection name"),
         ("status"     = Option<String>, Query, description = "Filter by status"),
-        ("page"       = Option<u32>,   Query, description = "Page number"),
-        ("per_page"   = Option<u32>,   Query, description = "Items per page"),
+        ("page"       = Option<u32>,   Query, description = "Page number (1-based)"),
+        ("per_page"   = Option<u32>,   Query, description = "Items per page (default 20)"),
     ),
     responses(
         (status = 200, body = inline(ApiEnvelope<Vec<ContentItem>>)),
@@ -72,20 +72,54 @@ pub struct ListQuery {
 )]
 pub async fn list_content(
     State(ctx): State<Arc<ServerContext>>,
+    Path(collection): Path<String>,
     Query(q): Query<ListQuery>,
 ) -> Result<ApiEnvelope<Vec<serde_json::Value>>, ApiError> {
-    validate_identifier(&q.collection)?;
-    let table = format!("ec_{}", q.collection);
-    let rows = ctx.db.list(&table).await?;
-    let total = rows.len() as u64;
-    Ok(ApiEnvelope::with_total(rows, total))
+    validate_identifier(&collection)?;
+    let table = format!("ec_{collection}");
+    let per_page = q.per_page.unwrap_or(DEFAULT_PER_PAGE).min(100);
+    let page = q.page.unwrap_or(1).max(1);
+    let offset = (page - 1) * per_page;
+
+    let total = ctx.db.count(&table).await?;
+
+    let rows = if let Some(status) = &q.status {
+        ctx.db
+            .query(
+                &format!(
+                    "SELECT * FROM {table} WHERE status = ? \
+                     ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                ),
+                vec![
+                    serde_json::Value::String(status.clone()),
+                    serde_json::Value::Number(per_page.into()),
+                    serde_json::Value::Number(offset.into()),
+                ],
+            )
+            .await?
+    } else {
+        ctx.db.list_page(&table, per_page, offset).await?
+    };
+
+    Ok(ApiEnvelope {
+        data: rows,
+        meta: PaginationMeta {
+            total: Some(total),
+            page: Some(page),
+            per_page: Some(per_page),
+            cursor: None,
+        },
+    })
 }
 
 /// Get a single content item.
 #[utoipa::path(
-    get, path = "/_emdash/api/content/{id}",
+    get, path = "/_emdash/api/content/{collection}/{id}",
     tag = "content",
-    params(("id" = String, Path, description = "Content item ID")),
+    params(
+        ("collection" = String, Path, description = "Collection name"),
+        ("id"         = String, Path, description = "Content item ID"),
+    ),
     responses(
         (status = 200, body = inline(ApiEnvelope<ContentItem>)),
         (status = 404, body = ApiError),
@@ -93,10 +127,8 @@ pub async fn list_content(
 )]
 pub async fn get_content(
     State(ctx): State<Arc<ServerContext>>,
-    Path(id): Path<String>,
-    Query(q): Query<std::collections::HashMap<String, String>>,
+    Path((collection, id)): Path<(String, String)>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
-    let collection = q.get("collection").cloned().unwrap_or_default();
     validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let item = ctx
@@ -107,10 +139,11 @@ pub async fn get_content(
     Ok(ApiEnvelope::new(item))
 }
 
-/// Create a content item.
+/// Create a content item in a collection.
 #[utoipa::path(
-    post, path = "/_emdash/api/content",
+    post, path = "/_emdash/api/content/{collection}",
     tag = "content",
+    params(("collection" = String, Path, description = "Collection name")),
     request_body = CreateContentBody,
     responses(
         (status = 201, body = inline(ApiEnvelope<ContentItem>)),
@@ -119,10 +152,11 @@ pub async fn get_content(
 )]
 pub async fn create_content(
     State(ctx): State<Arc<ServerContext>>,
+    Path(collection): Path<String>,
     Json(body): Json<CreateContentBody>,
 ) -> Result<(axum::http::StatusCode, ApiEnvelope<serde_json::Value>), ApiError> {
-    validate_identifier(&body.collection)?;
-    let table = format!("ec_{}", body.collection);
+    validate_identifier(&collection)?;
+    let table = format!("ec_{collection}");
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     let data_str = body.data.to_string();
@@ -156,9 +190,12 @@ pub async fn create_content(
 
 /// Update a content item.
 #[utoipa::path(
-    patch, path = "/_emdash/api/content/{id}",
+    patch, path = "/_emdash/api/content/{collection}/{id}",
     tag = "content",
-    params(("id" = String, Path, description = "Content item ID")),
+    params(
+        ("collection" = String, Path, description = "Collection name"),
+        ("id"         = String, Path, description = "Content item ID"),
+    ),
     request_body = UpdateContentBody,
     responses(
         (status = 200, body = inline(ApiEnvelope<ContentItem>)),
@@ -167,11 +204,9 @@ pub async fn create_content(
 )]
 pub async fn update_content(
     State(ctx): State<Arc<ServerContext>>,
-    Path(id): Path<String>,
-    Query(q): Query<std::collections::HashMap<String, String>>,
+    Path((collection, id)): Path<(String, String)>,
     Json(body): Json<UpdateContentBody>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
-    let collection = q.get("collection").cloned().unwrap_or_default();
     validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let now = Utc::now().to_rfc3339();
@@ -204,11 +239,14 @@ pub async fn update_content(
     Ok(ApiEnvelope::new(item))
 }
 
-/// Delete a content item (soft-delete — sets status to 'trashed').
+/// Soft-delete a content item (sets status to 'trashed').
 #[utoipa::path(
-    delete, path = "/_emdash/api/content/{id}",
+    delete, path = "/_emdash/api/content/{collection}/{id}",
     tag = "content",
-    params(("id" = String, Path, description = "Content item ID")),
+    params(
+        ("collection" = String, Path, description = "Collection name"),
+        ("id"         = String, Path, description = "Content item ID"),
+    ),
     responses(
         (status = 200, body = inline(ApiEnvelope<serde_json::Value>)),
         (status = 404, body = ApiError),
@@ -216,10 +254,8 @@ pub async fn update_content(
 )]
 pub async fn delete_content(
     State(ctx): State<Arc<ServerContext>>,
-    Path(id): Path<String>,
-    Query(q): Query<std::collections::HashMap<String, String>>,
+    Path((collection, id)): Path<(String, String)>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
-    let collection = q.get("collection").cloned().unwrap_or_default();
     validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let now = Utc::now().to_rfc3339();
@@ -239,17 +275,18 @@ pub async fn delete_content(
 
 /// Publish a content item.
 #[utoipa::path(
-    post, path = "/_emdash/api/content/{id}/publish",
+    post, path = "/_emdash/api/content/{collection}/{id}/publish",
     tag = "content",
-    params(("id" = String, Path, description = "Content item ID")),
+    params(
+        ("collection" = String, Path, description = "Collection name"),
+        ("id"         = String, Path, description = "Content item ID"),
+    ),
     responses((status = 200, body = inline(ApiEnvelope<serde_json::Value>)))
 )]
 pub async fn publish_content(
     State(ctx): State<Arc<ServerContext>>,
-    Path(id): Path<String>,
-    Query(q): Query<std::collections::HashMap<String, String>>,
+    Path((collection, id)): Path<(String, String)>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
-    let collection = q.get("collection").cloned().unwrap_or_default();
     validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let now = Utc::now().to_rfc3339();
@@ -273,19 +310,20 @@ pub async fn publish_content(
     Ok(ApiEnvelope::new(item))
 }
 
-/// Unpublish a content item.
+/// Unpublish a content item (resets to draft).
 #[utoipa::path(
-    post, path = "/_emdash/api/content/{id}/unpublish",
+    post, path = "/_emdash/api/content/{collection}/{id}/unpublish",
     tag = "content",
-    params(("id" = String, Path, description = "Content item ID")),
+    params(
+        ("collection" = String, Path, description = "Collection name"),
+        ("id"         = String, Path, description = "Content item ID"),
+    ),
     responses((status = 200, body = inline(ApiEnvelope<serde_json::Value>)))
 )]
 pub async fn unpublish_content(
     State(ctx): State<Arc<ServerContext>>,
-    Path(id): Path<String>,
-    Query(q): Query<std::collections::HashMap<String, String>>,
+    Path((collection, id)): Path<(String, String)>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
-    let collection = q.get("collection").cloned().unwrap_or_default();
     validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let now = Utc::now().to_rfc3339();
@@ -311,18 +349,21 @@ pub async fn unpublish_content(
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
         .route(
-            "/_emdash/api/content",
+            "/_emdash/api/content/{collection}",
             get(list_content).post(create_content),
         )
         .route(
-            "/_emdash/api/content/{id}",
+            "/_emdash/api/content/{collection}/{id}",
             get(get_content)
                 .patch(update_content)
                 .delete(delete_content),
         )
-        .route("/_emdash/api/content/{id}/publish", post(publish_content))
         .route(
-            "/_emdash/api/content/{id}/unpublish",
+            "/_emdash/api/content/{collection}/{id}/publish",
+            post(publish_content),
+        )
+        .route(
+            "/_emdash/api/content/{collection}/{id}/unpublish",
             post(unpublish_content),
         )
 }

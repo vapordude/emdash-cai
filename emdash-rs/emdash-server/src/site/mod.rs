@@ -125,12 +125,12 @@ async fn xml_sitemap(State(ctx): State<Arc<ServerContext>>) -> Response {
 pub fn router() -> Router<Arc<ServerContext>> {
     Router::new()
         // Public WP-compatible REST API
-        .route("/api/v1/:collection", get(public_list))
-        .route("/api/v1/:collection/:slug", get(public_get))
+        .route("/api/v1/{collection}", get(public_list))
+        .route("/api/v1/{collection}/{slug}", get(public_get))
         // HTML site
         .route("/", get(site_index))
-        .route("/:collection/:slug", get(site_page))
+        .route("/{collection}/{slug}", get(site_page))
         // Feeds & sitemap
-        .route("/feeds/:collection.rss", get(rss_feed))
+        .route("/feeds/{collection}/rss", get(rss_feed))
         .route("/sitemap.xml", get(xml_sitemap))
 }

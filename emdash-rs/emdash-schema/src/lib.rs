@@ -38,9 +38,17 @@ pub enum FieldType {
     Image,
     File,
     PortableText,
-    Object { fields: Vec<Field> },
-    Array { of: Box<FieldType> },
-    Reference { to: String },
+    /// Nested object — fields are serialised as JSON to avoid recursive schema generation.
+    Object {
+        #[schema(value_type = Object)]
+        fields: Vec<Field>,
+    },
+    /// Array of a sub-type — `of` is serialised as JSON to avoid recursive schema generation.
+    Array {
+        #[schema(value_type = Object)]
+        of: Box<FieldType>,
+    },
+    Reference { to: std::string::String },
     Custom { config: Value },
 }
 

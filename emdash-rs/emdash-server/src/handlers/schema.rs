@@ -123,24 +123,8 @@ pub async fn create_collection(
         .await
         .map_err(|_| ApiError::Conflict(format!("collection '{}' already exists", body.name)))?;
 
-    // Create the backing `ec_<name>` table with standard columns.
-    ctx.db
-        .execute(
-            &format!(
-                "CREATE TABLE IF NOT EXISTS ec_{name} (\
-                    id TEXT PRIMARY KEY, \
-                    status TEXT NOT NULL DEFAULT 'draft', \
-                    slug TEXT, \
-                    data TEXT, \
-                    published_at TEXT, \
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')), \
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))\
-                )",
-                name = body.name
-            ),
-            vec![],
-        )
-        .await?;
+    // Create the backing `ec_<name>` table via the canonical helper (no extra columns at creation).
+    ctx.db.create_collection_table(&body.name, &[]).await?;
 
     let item = ctx
         .db
