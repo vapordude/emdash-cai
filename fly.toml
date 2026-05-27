@@ -1,0 +1,35 @@
+app = "emdash"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.rs"
+
+[env]
+  PORT = "3000"
+  RUST_LOG = "info"
+  STORAGE_PATH = "/storage"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 500
+    soft_limit = 400
+
+[[mounts]]
+  source = "emdash_data"
+  destination = "/data"
+
+[[mounts]]
+  source = "emdash_storage"
+  destination = "/storage"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
