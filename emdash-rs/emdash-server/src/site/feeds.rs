@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::ServerContext;
 use emdash_core::ApiError;
+use emdash_db::validate_identifier;
 
 /// Generate an RSS 2.0 feed for a collection that has `is_feed = true`.
 pub async fn rss_for_collection(
@@ -47,6 +48,7 @@ pub async fn rss_for_collection(
         )));
     }
 
+    validate_identifier(collection)?;
     let table = format!("ec_{collection}");
     let items = ctx
         .db

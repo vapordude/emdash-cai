@@ -12,6 +12,7 @@ use axum::{
     routing::{get, post},
 };
 use emdash_core::ApiError;
+use emdash_db::validate_identifier;
 
 use super::common::ApiEnvelope;
 use crate::ServerContext;
@@ -73,6 +74,7 @@ pub async fn list_content(
     State(ctx): State<Arc<ServerContext>>,
     Query(q): Query<ListQuery>,
 ) -> Result<ApiEnvelope<Vec<serde_json::Value>>, ApiError> {
+    validate_identifier(&q.collection)?;
     let table = format!("ec_{}", q.collection);
     let rows = ctx.db.list(&table).await?;
     let total = rows.len() as u64;
@@ -95,6 +97,7 @@ pub async fn get_content(
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
     let collection = q.get("collection").cloned().unwrap_or_default();
+    validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let item = ctx
         .db
@@ -118,6 +121,7 @@ pub async fn create_content(
     State(ctx): State<Arc<ServerContext>>,
     Json(body): Json<CreateContentBody>,
 ) -> Result<(axum::http::StatusCode, ApiEnvelope<serde_json::Value>), ApiError> {
+    validate_identifier(&body.collection)?;
     let table = format!("ec_{}", body.collection);
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
@@ -168,6 +172,7 @@ pub async fn update_content(
     Json(body): Json<UpdateContentBody>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
     let collection = q.get("collection").cloned().unwrap_or_default();
+    validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let now = Utc::now().to_rfc3339();
 
@@ -215,6 +220,7 @@ pub async fn delete_content(
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
     let collection = q.get("collection").cloned().unwrap_or_default();
+    validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let now = Utc::now().to_rfc3339();
     ctx.db
@@ -244,6 +250,7 @@ pub async fn publish_content(
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
     let collection = q.get("collection").cloned().unwrap_or_default();
+    validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let now = Utc::now().to_rfc3339();
     ctx.db
@@ -279,6 +286,7 @@ pub async fn unpublish_content(
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> Result<ApiEnvelope<serde_json::Value>, ApiError> {
     let collection = q.get("collection").cloned().unwrap_or_default();
+    validate_identifier(&collection)?;
     let table = format!("ec_{collection}");
     let now = Utc::now().to_rfc3339();
     ctx.db

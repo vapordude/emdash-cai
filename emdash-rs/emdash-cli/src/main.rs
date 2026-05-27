@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use emdash_db::validate_identifier;
 use std::sync::Arc;
 use tracing::info;
 
@@ -104,6 +105,9 @@ async fn main() -> anyhow::Result<()> {
                     None => continue,
                 };
                 let table = format!("ec_{name}");
+                if validate_identifier(name).is_err() {
+                    continue;
+                }
                 let items = ctx.db
                     .query(
                         &format!(

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::ServerContext;
 use emdash_core::ApiError;
+use emdash_db::validate_identifier;
 
 // ── Template environment ──────────────────────────────────────────────────────
 
@@ -93,13 +94,17 @@ pub async fn render_home(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
 
     let (collection, items) = if let Some(col) = cols.into_iter().next() {
         let name = col["name"].as_str().unwrap_or("").to_string();
-        let rows = ctx.db
-            .query(
-                &format!("SELECT id, slug, created_at FROM ec_{name} WHERE status = 'published' ORDER BY created_at DESC LIMIT 20"),
-                vec![],
-            )
-            .await
-            .unwrap_or_default();
+        let rows = if validate_identifier(&name).is_ok() {
+            ctx.db
+                .query(
+                    &format!("SELECT id, slug, created_at FROM ec_{name} WHERE status = 'published' ORDER BY created_at DESC LIMIT 20"),
+                    vec![],
+                )
+                .await
+                .unwrap_or_default()
+        } else {
+            vec![]
+        };
         (name, rows)
     } else {
         ("posts".to_string(), vec![])
@@ -138,6 +143,7 @@ pub async fn render_page(
         .and_then(|r| r["value"].as_str().map(String::from))
         .unwrap_or_else(|| "EmDash".to_string());
 
+    validate_identifier(collection)?;
     let table = format!("ec_{collection}");
     let rows = ctx
         .db

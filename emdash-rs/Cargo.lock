@@ -775,6 +775,7 @@ dependencies = [
  "minijinja",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
  "tower-http",
  "tracing",

@@ -15,6 +15,7 @@ use std::sync::Arc;
 
 use crate::ServerContext;
 use emdash_core::ApiError;
+use emdash_db::validate_identifier;
 
 // ── Public REST API (WP REST API compatible shape) ────────────────────────────
 
@@ -34,6 +35,7 @@ async fn public_list(
     Query(q): Query<PublicListQuery>,
 ) -> Result<axum::Json<Value>, (StatusCode, String)> {
     // Only return published content on the public API.
+    validate_identifier(&collection).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     let table = format!("ec_{collection}");
     let status = q.status.as_deref().unwrap_or("published");
     let rows = ctx
@@ -52,6 +54,7 @@ async fn public_get(
     State(ctx): State<Arc<ServerContext>>,
     Path((collection, slug)): Path<(String, String)>,
 ) -> Result<axum::Json<Value>, (StatusCode, String)> {
+    validate_identifier(&collection).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     let table = format!("ec_{collection}");
     let rows = ctx
         .db

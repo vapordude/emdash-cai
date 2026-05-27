@@ -122,16 +122,10 @@ pub async fn revoke_api_token(
     Ok(ApiEnvelope::new(serde_json::json!({ "revoked": id })))
 }
 
-// Minimal SHA-256 using only stdlib (no ring/sha2 dependency).
 fn sha256_hex(data: &[u8]) -> String {
-    // We import sha2 via a tiny hand-rolled path: just use a std hasher trick.
-    // For simplicity we use the Rust stable hasher here; a production system
-    // should use ring or sha2.  This keeps the dep tree minimal.
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-    let mut h = DefaultHasher::new();
-    data.hash(&mut h);
-    format!("{:x}", h.finish())
+    use sha2::{Digest, Sha256};
+    let hash = Sha256::digest(data);
+    format!("{hash:x}")
 }
 
 pub fn router() -> Router<Arc<ServerContext>> {

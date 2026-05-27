@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::ServerContext;
 use emdash_core::ApiError;
+use emdash_db::validate_identifier;
 
 /// Generate an XML sitemap covering all published content across all collections.
 pub async fn generate(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
@@ -30,6 +31,9 @@ pub async fn generate(ctx: &Arc<ServerContext>) -> Result<String, ApiError> {
             None => continue,
         };
         let table = format!("ec_{name}");
+        if validate_identifier(name).is_err() {
+            continue;
+        }
         let items = ctx.db
             .query(
                 &format!(

@@ -82,7 +82,7 @@ impl StorageProvider for LocalStorage {
             .map_err(|e| ApiError::Internal(e.to_string()))?
         {
             if let Some(name) = entry.file_name().to_str() {
-                names.push(format!("{prefix}/{name}"));
+                names.push(Path::new(prefix).join(name).to_string_lossy().into_owned());
             }
         }
         Ok(names)
