@@ -1,7 +1,9 @@
 pub mod handlers;
+pub mod middleware;
 pub mod site;
+pub mod util;
 
-use axum::{Router, response::Html, routing::get};
+use axum::{Router, middleware as axum_middleware, response::Html, routing::get};
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
@@ -34,14 +36,6 @@ pub struct ServerContext {
         emdash_core::ApiError,
         emdash_core::ChatMessage,
         emdash_core::LlmOptions,
-        emdash_core::portable_text::Block,
-        emdash_core::portable_text::Span,
-        emdash_core::portable_text::MarkDef,
-        emdash_core::portable_text::ImageBlock,
-        emdash_core::portable_text::ImageAsset,
-        emdash_core::portable_text::Hotspot,
-        emdash_core::portable_text::Crop,
-        emdash_core::portable_text::ObjectBlock,
         emdash_schema::Collection,
         emdash_schema::Field,
         emdash_schema::FieldType,
@@ -84,7 +78,7 @@ pub struct ApiDoc;
 
 /// Build the complete axum router wired to the given context.
 pub fn create_router(ctx: Arc<ServerContext>) -> Router {
-    // Resolve state on all state-aware routers → Router<()>
+    // Protected API routes — require a valid Bearer token.
     let api = Router::new()
         .merge(handlers::content::router())
         .merge(handlers::schema::router())
@@ -99,8 +93,13 @@ pub fn create_router(ctx: Arc<ServerContext>) -> Router {
         .merge(handlers::plugins::router())
         .merge(handlers::dashboard::router())
         .merge(handlers::agent::router())
+        .layer(axum_middleware::from_fn_with_state(
+            ctx.clone(),
+            middleware::auth::require_auth,
+        ))
         .with_state(ctx.clone());
 
+    // Public site + unprotected utility routes.
     let site = site::router().with_state(ctx);
 
     Router::new()

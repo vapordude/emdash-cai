@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS _emdash_users (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Auth sessions (short-lived; token is stored as a SHA-256 hex hash)
+-- Auth sessions (short-lived, token stored as a SHA-256 hex hash)
 CREATE TABLE IF NOT EXISTS _emdash_sessions (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL REFERENCES _emdash_users(id) ON DELETE CASCADE,
