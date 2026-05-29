@@ -8,7 +8,7 @@
  * Defaults:
  *   source:  http://localhost:4321
  *   preview: http://localhost:4322
- *   secret:  reads PREVIEW_SECRET from .dev.vars, falls back to "dev-secret"
+ *   secret:  reads PREVIEW_SECRET from environment or .dev.vars
  */
 
 import { readFileSync } from "node:fs";
@@ -16,13 +16,20 @@ import { readFileSync } from "node:fs";
 const source = process.argv[2] || "http://localhost:4321";
 const preview = process.argv[3] || "http://localhost:4322";
 
-let secret = "dev-secret";
-try {
-	const devVars = readFileSync(new URL(".dev.vars", import.meta.url), "utf-8");
-	const match = devVars.match(/^PREVIEW_SECRET\s*=\s*"?([^"\n]+)"?/m);
-	if (match) secret = match[1]!;
-} catch {
-	// no .dev.vars, use default
+let secret = process.env.PREVIEW_SECRET;
+if (!secret) {
+	try {
+		const devVars = readFileSync(new URL(".dev.vars", import.meta.url), "utf-8");
+		const match = devVars.match(/^PREVIEW_SECRET\s*=\s*"?([^"\n]+)"?/m);
+		if (match) secret = match[1]!;
+	} catch {
+		// no .dev.vars
+	}
+}
+
+if (!secret) {
+	console.error("Error: PREVIEW_SECRET is not set in environment or .dev.vars");
+	process.exit(1);
 }
 
 const exp = Math.floor(Date.now() / 1000) + 3600;
