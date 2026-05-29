@@ -49,6 +49,7 @@ export interface CreateMediaInput {
 export interface FindManyMediaOptions {
 	limit?: number;
 	cursor?: string;
+	query?: string; // Search query for filename, alt, or caption
 	mimeType?: string; // Filter by mime type prefix, e.g., "image/"
 	status?: MediaStatus | "all"; // Filter by status, defaults to "ready"
 }
@@ -218,6 +219,17 @@ export class MediaRepository {
 		if (options.mimeType) {
 			const pattern = `${escapeLike(options.mimeType)}%`;
 			query = query.where(sql<SqlBool>`mime_type LIKE ${pattern} ESCAPE '\\'`);
+		}
+
+		if (options.query) {
+			const pattern = `%${escapeLike(options.query)}%`;
+			query = query.where((eb) =>
+				eb.or([
+					sql<SqlBool>`filename LIKE ${pattern} ESCAPE '\\'`,
+					sql<SqlBool>`alt LIKE ${pattern} ESCAPE '\\'`,
+					sql<SqlBool>`caption LIKE ${pattern} ESCAPE '\\'`,
+				]),
+			);
 		}
 
 		// Default to only showing ready items
