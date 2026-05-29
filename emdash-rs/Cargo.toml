@@ -1,51 +1,51 @@
 [workspace]
 members = [
-    "emdash-core",
-    "emdash-db",
-    "emdash-schema",
-    "emdash-sandbox",
-    "emdash-server",
-    "emdash-storage",
-    "emdash-llm",
-    "emdash-cli",
+	"emdash-core",
+	"emdash-db",
+	"emdash-schema",
+	"emdash-sandbox",
+	"emdash-server",
+	"emdash-storage",
+	"emdash-llm",
+	"emdash-cli",
 ]
 resolver = "2"
 
 [workspace.dependencies]
-async-trait  = "0.1"
-serde        = { version = "1", features = ["derive"] }
-serde_json   = "1"
-sha2         = "0.10"
-thiserror    = "2"
-tokio        = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util"] }
-axum         = { version = "0.8", features = ["json", "macros"] }
-tower-http   = { version = "0.6", features = ["cors", "trace"] }
-tracing      = "0.1"
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "fs", "io-util"] }
+axum = { version = "0.8", features = ["json", "macros"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
-uuid         = { version = "1", features = ["v4", "serde"] }
-chrono       = { version = "0.4", features = ["serde"] }
-sqlx         = { version = "0.8", features = ["sqlite", "runtime-tokio", "json", "chrono", "uuid"] }
-reqwest      = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-utoipa       = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
-utoipa-axum  = "0.1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "json", "chrono", "uuid"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-axum = "0.1"
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
-minijinja    = { version = "2", features = ["loader"] }
-clap         = { version = "4", features = ["derive", "env"] }
-dashmap      = "6"
-anyhow       = "1"
-wasmtime     = "26"
+minijinja = { version = "2", features = ["loader"] }
+clap = { version = "4", features = ["derive", "env"] }
+dashmap = "6"
+anyhow = "1"
+wasmtime = "26"
 
 # internal
-emdash-core    = { version = "0.1.0", path = "emdash-core" }
-emdash-db      = { version = "0.1.0", path = "emdash-db" }
-emdash-schema  = { version = "0.1.0", path = "emdash-schema" }
+emdash-core = { version = "0.1.0", path = "emdash-core" }
+emdash-db = { version = "0.1.0", path = "emdash-db" }
+emdash-schema = { version = "0.1.0", path = "emdash-schema" }
 emdash-sandbox = { version = "0.1.0", path = "emdash-sandbox" }
 emdash-storage = { version = "0.1.0", path = "emdash-storage" }
-emdash-llm     = { version = "0.1.0", path = "emdash-llm" }
-emdash-server  = { version = "0.1.0", path = "emdash-server" }
+emdash-llm = { version = "0.1.0", path = "emdash-llm" }
+emdash-server = { version = "0.1.0", path = "emdash-server" }
 
 [profile.release]
-opt-level     = 3
-lto           = "thin"
+opt-level = 3
+lto = "thin"
 codegen-units = 1
-strip         = "symbols"
+strip = "symbols"

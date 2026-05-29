@@ -47,6 +47,7 @@ export interface CreateMediaInput {
 }
 
 export interface FindManyMediaOptions {
+	query?: string;
 	limit?: number;
 	cursor?: string;
 	mimeType?: string; // Filter by mime type prefix, e.g., "image/"
@@ -211,6 +212,17 @@ export class MediaRepository {
 				eb.or([
 					eb("created_at", "<", createdAt),
 					eb.and([eb("created_at", "=", createdAt), eb("id", "<", cursorId)]),
+				]),
+			);
+		}
+
+		if (options.query) {
+			const pattern = `%${escapeLike(options.query)}%`;
+			query = query.where((eb) =>
+				eb.or([
+					sql<SqlBool>`filename LIKE ${pattern} ESCAPE '\\'`,
+					sql<SqlBool>`caption LIKE ${pattern} ESCAPE '\\'`,
+					sql<SqlBool>`alt LIKE ${pattern} ESCAPE '\\'`,
 				]),
 			);
 		}

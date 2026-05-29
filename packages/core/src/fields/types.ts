@@ -1,4 +1,5 @@
 import type { z } from "astro/zod";
+
 import type { ColumnType } from "../schema/types.js";
 
 export type { ColumnType } from "../schema/types.js";

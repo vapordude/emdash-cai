@@ -1,22 +1,22 @@
 {
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile.rs"
-  },
-  "deploy": {
-    "startCommand": "emdash serve",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3
-  },
-  "environments": {
-    "production": {
-      "variables": {
-        "DATABASE_URL": "/data/emdash.db",
-        "STORAGE_PATH": "/storage",
-        "PORT": "3000",
-        "RUST_LOG": "info"
-      }
-    }
-  }
+	"$schema": "https://railway.app/railway.schema.json",
+	"build": {
+		"builder": "DOCKERFILE",
+		"dockerfilePath": "Dockerfile.rs"
+	},
+	"deploy": {
+		"startCommand": "emdash serve",
+		"restartPolicyType": "ON_FAILURE",
+		"restartPolicyMaxRetries": 3
+	},
+	"environments": {
+		"production": {
+			"variables": {
+				"DATABASE_URL": "/data/emdash.db",
+				"STORAGE_PATH": "/storage",
+				"PORT": "3000",
+				"RUST_LOG": "info"
+			}
+		}
+	}
 }

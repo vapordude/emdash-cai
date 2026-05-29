@@ -13,8 +13,8 @@ import { DEFAULT_CATEGORIES, buildTaxonomy } from "./categories.js";
 import type { Category } from "./categories.js";
 import { computeDecision } from "./decision.js";
 import type { AIModerationOptions } from "./descriptor.js";
-import { runUniversalGuard } from "./openaicompat.js";
 import type { GuardResult } from "./guard.js";
+import { runUniversalGuard } from "./openaicompat.js";
 
 /** KV key for stored categories */
 const KV_CATEGORIES = "config:categories";

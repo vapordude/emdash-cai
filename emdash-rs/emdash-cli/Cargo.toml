@@ -1,5 +1,5 @@
 [package]
-name    = "emdash-cli"
+name = "emdash-cli"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,16 +8,16 @@ name = "emdash"
 path = "src/main.rs"
 
 [dependencies]
-anyhow       = { workspace = true }
-axum         = { workspace = true }
-clap         = { workspace = true }
-tokio        = { workspace = true }
-tracing      = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-serde_json   = { workspace = true }
-emdash-core    = { workspace = true }
-emdash-db      = { workspace = true }
+serde_json = { workspace = true }
+emdash-core = { workspace = true }
+emdash-db = { workspace = true }
 emdash-storage = { workspace = true }
-emdash-llm     = { workspace = true }
+emdash-llm = { workspace = true }
 emdash-sandbox = { workspace = true }
-emdash-server  = { workspace = true }
+emdash-server = { workspace = true }

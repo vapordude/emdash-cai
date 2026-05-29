@@ -1,7 +1,7 @@
 import { z } from "astro/zod";
 
-import type { FieldDefinition } from "./types.js";
 import type { MediaValue } from "../media/types.js";
+import type { FieldDefinition } from "./types.js";
 
 /**
  * Image field schema
