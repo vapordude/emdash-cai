@@ -1,30 +1,30 @@
 [package]
-name    = "emdash-server"
+name = "emdash-server"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-async-trait       = { workspace = true }
-serde             = { workspace = true }
-serde_json        = { workspace = true }
-sha2              = { workspace = true }
-tokio             = { workspace = true }
-axum              = { workspace = true }
-tower-http        = { workspace = true }
-tracing           = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tokio = { workspace = true }
+axum = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-uuid              = { workspace = true }
-chrono            = { workspace = true }
-utoipa            = { workspace = true }
-minijinja         = { workspace = true }
-emdash-core       = { workspace = true }
-emdash-db         = { workspace = true }
-emdash-schema     = { workspace = true }
-emdash-sandbox    = { workspace = true }
-emdash-storage    = { workspace = true }
-emdash-llm        = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+utoipa = { workspace = true }
+minijinja = { workspace = true }
+emdash-core = { workspace = true }
+emdash-db = { workspace = true }
+emdash-schema = { workspace = true }
+emdash-sandbox = { workspace = true }
+emdash-storage = { workspace = true }
+emdash-llm = { workspace = true }
 
 [dev-dependencies]
-tower             = { version = "0.5", features = ["util"] }
-http-body-util    = "0.1"
-tokio             = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

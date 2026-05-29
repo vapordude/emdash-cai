@@ -9,10 +9,10 @@ export interface UniversalAIConfig {
 
 export async function generateUniversalEmbedding(
 	text: string,
-	config: UniversalAIConfig
+	config: UniversalAIConfig,
 ): Promise<number[]> {
 	const openai = createOpenAICompatible({
-		name: 'universal-ai',
+		name: "universal-ai",
 		baseURL: config.baseURL,
 		headers: {
 			Authorization: `Bearer ${config.apiKey}`,

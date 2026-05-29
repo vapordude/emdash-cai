@@ -49,7 +49,7 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 				cursor: options.cursor,
 				limit: options.limit,
 				mimeType: options.mimeType,
-				// TODO: Add search support when capabilities.search is true
+				query: options.query,
 			});
 
 			return {

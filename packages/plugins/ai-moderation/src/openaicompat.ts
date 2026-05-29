@@ -1,6 +1,7 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateObject } from "ai";
 import { z } from "zod";
+
 import { buildGuardPrompt } from "./guard.js";
 import type { GuardResult } from "./guard.js";
 
@@ -18,10 +19,10 @@ const responseSchema = z.object({
 export async function runUniversalGuard(
 	text: string,
 	taxonomy: string,
-	config: UniversalAIConfig
+	config: UniversalAIConfig,
 ): Promise<GuardResult> {
 	const openai = createOpenAICompatible({
-		name: 'universal-ai',
+		name: "universal-ai",
 		baseURL: config.baseURL,
 		apiKey: config.apiKey,
 	});

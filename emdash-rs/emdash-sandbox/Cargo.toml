@@ -1,5 +1,5 @@
 [package]
-name    = "emdash-sandbox"
+name = "emdash-sandbox"
 version = "0.1.0"
 edition = "2024"
 
@@ -10,9 +10,9 @@ wasmtime-sandbox = ["dep:wasmtime", "dep:dashmap"]
 
 [dependencies]
 async-trait = { workspace = true }
-serde_json  = { workspace = true }
+serde_json = { workspace = true }
 emdash-core = { workspace = true }
 
 # Optional — only compiled with the `wasmtime-sandbox` feature.
 wasmtime = { workspace = true, optional = true }
-dashmap  = { workspace = true, optional = true }
+dashmap = { workspace = true, optional = true }

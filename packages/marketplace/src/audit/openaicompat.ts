@@ -1,8 +1,14 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateObject } from "ai";
 import { z } from "zod";
+
+import type {
+	ImageAuditFinding,
+	ImageAuditResult,
+	ImageAuditor,
+	ImageInput,
+} from "./image-types.js";
 import type { AuditInput, AuditResult, Auditor } from "./types.js";
-import type { ImageAuditFinding, ImageAuditResult, ImageAuditor, ImageInput } from "./image-types.js";
 
 const SYSTEM_PROMPT = `You are a security auditor for EmDash CMS plugins. EmDash plugins run in a sandboxed environment on Cloudflare Workers. Your job is to analyze plugin source code and manifest for security risks.
 
@@ -83,7 +89,7 @@ export interface UniversalAIConfig {
 
 export function createUniversalAIAuditor(config: UniversalAIConfig): Auditor {
 	const openai = createOpenAICompatible({
-		name: 'universal-ai',
+		name: "universal-ai",
 		baseURL: config.baseURL,
 		apiKey: config.apiKey,
 	});
@@ -184,7 +190,7 @@ function toDataUri(data: ArrayBuffer): string {
 
 export function createUniversalAIImageAuditor(config: UniversalAIConfig): ImageAuditor {
 	const openai = createOpenAICompatible({
-		name: 'universal-ai',
+		name: "universal-ai",
 		baseURL: config.baseURL,
 		apiKey: config.apiKey,
 	});
