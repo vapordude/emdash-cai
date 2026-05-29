@@ -111,48 +111,57 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 			): Promise<{ mediaId: string; storageKey: string; url: string }>;
 		};
 
-		for (const field of allFields.filter((f) => f.type === "file")) {
-			const fileData = input.files[field.name];
-			if (!fileData) continue;
+		const uploadPromises = allFields
+			.filter((f) => f.type === "file")
+			.map(async (field) => {
+				const fileData = input.files?.[field.name];
+				if (!fileData) return null;
 
-			// Validate file type
-			if (field.validation?.accept) {
-				const allowed = field.validation.accept.split(",").map((s) => s.trim().toLowerCase());
-				const ext = `.${fileData.filename.split(".").pop()?.toLowerCase()}`;
-				const typeMatch = allowed.some(
-					(a) =>
-						a === ext ||
-						a === fileData.contentType ||
-						fileData.contentType.startsWith(a.replace("/*", "/")),
-				);
-				if (!typeMatch) {
-					throw PluginRouteError.badRequest(`File type not allowed for ${field.label}`);
+				// Validate file type
+				if (field.validation?.accept) {
+					const allowed = field.validation.accept.split(",").map((s) => s.trim().toLowerCase());
+					const ext = `.${fileData.filename.split(".").pop()?.toLowerCase()}`;
+					const typeMatch = allowed.some(
+						(a) =>
+							a === ext ||
+							a === fileData.contentType ||
+							fileData.contentType.startsWith(a.replace("/*", "/")),
+					);
+					if (!typeMatch) {
+						throw PluginRouteError.badRequest(`File type not allowed for ${field.label}`);
+					}
 				}
-			}
 
-			// Validate file size
-			if (
-				field.validation?.maxFileSize &&
-				fileData.bytes.byteLength > field.validation.maxFileSize
-			) {
-				throw PluginRouteError.badRequest(
-					`File too large for ${field.label}. Maximum: ${Math.round(field.validation.maxFileSize / 1024)} KB`,
+				// Validate file size
+				if (
+					field.validation?.maxFileSize &&
+					fileData.bytes.byteLength > field.validation.maxFileSize
+				) {
+					throw PluginRouteError.badRequest(
+						`File too large for ${field.label}. Maximum: ${Math.round(field.validation.maxFileSize / 1024)} KB`,
+					);
+				}
+
+				const uploaded = await mediaWithWrite.upload(
+					fileData.filename,
+					fileData.contentType,
+					fileData.bytes,
 				);
-			}
 
-			const uploaded = await mediaWithWrite.upload(
-				fileData.filename,
-				fileData.contentType,
-				fileData.bytes,
-			);
-
-			files.push({
-				fieldName: field.name,
-				filename: fileData.filename,
-				contentType: fileData.contentType,
-				size: fileData.bytes.byteLength,
-				mediaId: uploaded.mediaId,
+				return {
+					fieldName: field.name,
+					filename: fileData.filename,
+					contentType: fileData.contentType,
+					size: fileData.bytes.byteLength,
+					mediaId: uploaded.mediaId,
+				};
 			});
+
+		const uploadResults = await Promise.all(uploadPromises);
+		for (const result of uploadResults) {
+			if (result) {
+				files.push(result);
+			}
 		}
 	}
 
