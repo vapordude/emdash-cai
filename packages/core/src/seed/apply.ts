@@ -594,15 +594,20 @@ export async function applySeed(
 
 	// 11. Sections
 	if (seed.sections) {
+		const slugs = seed.sections.map((s) => s.slug);
+		const existingSections = await db
+			.selectFrom("_emdash_sections")
+			.select(["id", "slug"])
+			.where("slug", "in", slugs)
+			.execute();
+
+		const existingMap = new Map(existingSections.map((s) => [s.slug, s.id]));
+
 		for (const section of seed.sections) {
 			// Check if section exists
-			const existing = await db
-				.selectFrom("_emdash_sections")
-				.select("id")
-				.where("slug", "=", section.slug)
-				.executeTakeFirst();
+			const existingId = existingMap.get(section.slug);
 
-			if (existing) {
+			if (existingId) {
 				if (onConflict === "error") {
 					throw new Error(`Conflict: section "${section.slug}" already exists`);
 				}
@@ -618,7 +623,7 @@ export async function applySeed(
 							source: section.source || "theme",
 							updated_at: new Date().toISOString(),
 						})
-						.where("id", "=", existing.id)
+						.where("id", "=", existingId)
 						.execute();
 					result.sections.updated++;
 					continue;
