@@ -187,20 +187,22 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 	// 7. Immediate email notifications (not digest)
 	if (settings.notifyEmails.length > 0 && !settings.digestEnabled && ctx.email) {
 		const text = formatSubmissionText(form, result.data, files);
-		for (const email of settings.notifyEmails) {
-			await ctx.email
-				.send({
-					to: email,
-					subject: `New submission: ${form.name}`,
-					text,
-				})
-				.catch((err: unknown) => {
-					ctx.log.error("Failed to send notification email", {
-						error: String(err),
+		await Promise.all(
+			settings.notifyEmails.map((email: string) =>
+				ctx.email!
+					.send({
 						to: email,
-					});
-				});
-		}
+						subject: `New submission: ${form.name}`,
+						text,
+					})
+					.catch((err: unknown) => {
+						ctx.log.error("Failed to send notification email", {
+							error: String(err),
+							to: email,
+						});
+					}),
+			),
+		);
 	}
 
 	// 8. Autoresponder
