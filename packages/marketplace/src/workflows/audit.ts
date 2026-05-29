@@ -3,7 +3,11 @@ import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import { createGzipDecoder, unpackTar } from "modern-tar";
 
 import type { ImageInput } from "../audit/image-types.js";
-import { createUniversalAIImageAuditor, createUniversalAIAuditor, type UniversalAIConfig } from "../audit/openaicompat.js";
+import {
+	createUniversalAIImageAuditor,
+	createUniversalAIAuditor,
+	type UniversalAIConfig,
+} from "../audit/openaicompat.js";
 import type { AuditInput } from "../audit/types.js";
 import {
 	createAudit,

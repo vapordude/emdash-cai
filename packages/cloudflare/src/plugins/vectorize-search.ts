@@ -44,6 +44,7 @@
 
 import type { PluginDefinition, PluginContext, RouteContext, ContentHookEvent } from "emdash";
 import { extractPlainText } from "emdash";
+
 import { generateUniversalEmbedding } from "./openaicompat.js";
 
 /** Safely extract a string from an unknown value */
