@@ -9,6 +9,7 @@ import { cursorPaginationQuery } from "./common.js";
 export const mediaListQuery = cursorPaginationQuery
 	.extend({
 		mimeType: z.string().optional(),
+		query: z.string().optional(),
 	})
 	.meta({ id: "MediaListQuery" });
 
